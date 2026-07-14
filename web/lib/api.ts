@@ -15,6 +15,7 @@ export type Analysis = {
   id: string;
   status: string;
   text: string;
+  speaker?: string | null;
   summary: string;
   claims: Claim[];
   topics: string[];
@@ -22,11 +23,11 @@ export type Analysis = {
   created_at: string;
 };
 
-export async function createAnalysis(text: string): Promise<Analysis> {
+export async function createAnalysis(text: string, speaker?: string): Promise<Analysis> {
   const r = await fetch(`${API_URL}/analyze`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, speaker: speaker || undefined }),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();

@@ -30,7 +30,7 @@ def _run_pipeline(analysis_id: UUID, text: str) -> None:
         if row is None:
             return
         try:
-            result = pipeline.run(text)
+            result = pipeline.run(text, row.speaker)
             row.summary = result.get("summary", "")
             row.topics = result.get("topics", [])
             row.claims = result.get("claims", [])
@@ -54,7 +54,7 @@ def create_analysis(
     tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    row = Analysis(input_text=payload.text, status="processing")
+    row = Analysis(input_text=payload.text, speaker=payload.speaker, status="processing")
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -63,6 +63,7 @@ def create_analysis(
         id=row.id,
         status=row.status,
         text=row.input_text,
+        speaker=row.speaker,
         summary="",
         claims=[],
         topics=[],
@@ -80,6 +81,7 @@ def get_analysis(analysis_id: UUID, db: Session = Depends(get_db)):
         id=row.id,
         status=row.status,
         text=row.input_text,
+        speaker=row.speaker,
         summary=row.summary,
         claims=row.claims,
         topics=row.topics,

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class AnalyzeRequest(BaseModel):
     text: str = Field(min_length=20, max_length=100_000)
+    speaker: str | None = Field(default=None, max_length=200)
 
 
 class Source(BaseModel):
@@ -34,6 +35,7 @@ class AnalysisOut(BaseModel):
     id: UUID
     status: str
     text: str
+    speaker: str | None = None
     summary: str
     claims: list[Claim]
     topics: list[str]

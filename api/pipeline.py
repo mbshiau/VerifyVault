@@ -85,7 +85,13 @@ EXTRACT_TOOL = {
 }
 
 
-def extract(text: str) -> dict:
+def extract(text: str, speaker: str | None = None) -> dict:
+    speaker_line = (
+        f"This text was said or written by {speaker}. Use that when judging who entities/related_entities "
+        "refer to (e.g. resolve pronouns like 'I' or 'we' to this speaker) and when writing context/explanation.\n\n"
+        if speaker
+        else ""
+    )
     resp = client.chat.completions.create(
         model=settings.groq_model,
         max_tokens=4096,
@@ -102,6 +108,7 @@ def extract(text: str) -> dict:
             {
                 "role": "user",
                 "content": (
+                    f"{speaker_line}"
                     "Analyze the following political text. Extract a concise summary, "
                     "topics, verifiable factual claims, and named entities. For each claim, include "
                     "a verbatim quote of the source sentence, a brief explanation of what it asserts "
@@ -263,11 +270,12 @@ def explain_relevance(claim_text: str, sources: list[dict]) -> dict[str, str]:
     return {}
 
 
-def run(text: str) -> dict:
-    result = extract(text)
+def run(text: str, speaker: str | None = None) -> dict:
+    result = extract(text, speaker)
     for claim in result.get("claims", []):
         try:
-            sources = search_sources(claim["text"], k=3)
+            query = f"{speaker}: {claim['text']}" if speaker else claim["text"]
+            sources = search_sources(query, k=3)
             relations = explain_relevance(claim["text"], sources)
             for s in sources:
                 s["relation"] = relations.get(s["url"], "")

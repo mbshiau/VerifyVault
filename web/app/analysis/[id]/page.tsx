@@ -104,7 +104,10 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           </Link>
           <header>
             <h1 className="text-2xl font-semibold">Analysis</h1>
-            <p className="text-sm text-neutral-500">Status: {data.status}</p>
+            <p className="text-sm text-neutral-500">
+              Status: {data.status}
+              {data.speaker && <> · Speaker: {data.speaker}</>}
+            </p>
           </header>
 
           {processing ? (
