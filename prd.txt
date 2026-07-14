@@ -1,0 +1,136 @@
+Product Requirements Document (PRD)
+
+Title: Political Communication Analyzer (Text MVP) Version: 1.0
+
+Vision
+
+Build an AI-powered research assistant that transforms political text
+into structured, searchable knowledge. Rather than telling users what to
+believe, the platform extracts claims, identifies topics, retrieves
+relevant evidence, and helps users organize their own research.
+
+Goals
+
+-   Analyze political text documents
+-   Extract factual claims
+-   Identify topics and named entities
+-   Retrieve relevant evidence
+-   Provide AI summaries
+-   Allow user annotations
+-   Build a searchable personal research library
+
+Supported Inputs
+
+-   Plain text (paste)
+-   PDF documents
+-   Speech transcripts
+-   Debate transcripts
+-   Press releases
+-   Campaign statements
+-   Public social media posts (copied text)
+
+Out of Scope (MVP)
+
+-   Video analysis
+-   Audio transcription
+-   Live debate analysis
+-   OCR for images
+-   Community database
+
+User Flow
+
+1.  User signs in.
+2.  User pastes text or uploads a PDF.
+3.  System extracts text.
+4.  AI analyzes the document.
+5.  Results are stored in the user’s library.
+6.  User can annotate, search, and organize analyses.
+
+AI Pipeline
+
+Text Input ↓ Text Validation ↓ Political Content Detection ↓ Claim
+Extraction ↓ Topic Classification ↓ Named Entity Recognition ↓ Evidence
+Retrieval ↓ AI Summary ↓ Embedding Generation ↓ Database Storage ↓
+Interactive Dashboard
+
+Core Features
+
+Text Upload
+
+-   Paste text
+-   Upload PDF
+
+Claim Extraction
+
+Identify factual or verifiable claims with: - Claim text - Confidence
+score - Character/paragraph location
+
+Topic Classification
+
+Examples: - Economy - Healthcare - Immigration - Education - Crime -
+Foreign Policy
+
+Named Entity Recognition
+
+Extract: - People - Organizations - Laws - Programs - Locations
+
+Evidence Retrieval
+
+Retrieve relevant: - Government sources - Academic sources - News
+sources - Legislation - Official reports
+
+AI Summary
+
+Generate: - Executive summary - Key claims - Main themes - Important
+entities
+
+Personal Workspace
+
+Each user has: - Personal library - Private annotations - Highlights -
+Custom tags - Collections - Bookmarks
+
+Search
+
+Search by: - Candidate - Topic - Entity - Claim - Tags - Semantic
+similarity
+
+Database Model
+
+Document - Document ID - Original text - Claims - Topics - Entities -
+Summary - Embeddings
+
+User - Library - Notes - Highlights - Tags - Collections
+
+Technology Stack
+
+Frontend: - Next.js - React - Tailwind CSS
+
+Backend: - FastAPI (Python) - PostgreSQL - Vector database
+
+AI: - LLM for claim extraction and summaries - Embedding model for
+semantic search - Search service for evidence retrieval
+
+Success Metrics
+
+-   Accurate claim extraction
+-   High-quality evidence retrieval
+-   Fast analysis
+-   Number of analyzed documents
+-   Number of annotations created
+
+Future Roadmap
+
+V2: - OCR for images and campaign mailers
+
+V3: - Video uploads - Speech-to-text
+
+V4: - Public knowledge base - Community annotations
+
+V5: - Live debate analysis
+
+Long-Term Vision
+
+Create an AI-powered platform that helps researchers, journalists,
+students, and the public understand political communication through
+transparent analysis, evidence retrieval, and collaborative research
+tools.
