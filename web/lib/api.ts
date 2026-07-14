@@ -1,11 +1,20 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export type Source = { title: string; url: string; snippet?: string };
-export type Claim = { text: string; confidence: number; sources: Source[] };
+export type Source = { title: string; url: string; snippet?: string; relation?: string };
+export type Claim = {
+  text: string;
+  quote?: string;
+  explanation?: string;
+  context?: string;
+  related_entities?: string[];
+  confidence: number;
+  sources: Source[];
+};
 export type Entity = { name: string; type: string };
 export type Analysis = {
   id: string;
   status: string;
+  text: string;
   summary: string;
   claims: Claim[];
   topics: string[];

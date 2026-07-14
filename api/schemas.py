@@ -12,10 +12,15 @@ class Source(BaseModel):
     title: str
     url: str
     snippet: str | None = None
+    relation: str = ""
 
 
 class Claim(BaseModel):
     text: str
+    quote: str = ""
+    explanation: str = ""
+    context: str = ""
+    related_entities: list[str] = []
     confidence: float
     sources: list[Source] = []
 
@@ -28,6 +33,7 @@ class Entity(BaseModel):
 class AnalysisOut(BaseModel):
     id: UUID
     status: str
+    text: str
     summary: str
     claims: list[Claim]
     topics: list[str]

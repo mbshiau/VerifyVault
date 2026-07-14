@@ -62,6 +62,7 @@ def create_analysis(
     return AnalysisOut(
         id=row.id,
         status=row.status,
+        text=row.input_text,
         summary="",
         claims=[],
         topics=[],
@@ -78,6 +79,7 @@ def get_analysis(analysis_id: UUID, db: Session = Depends(get_db)):
     return AnalysisOut(
         id=row.id,
         status=row.status,
+        text=row.input_text,
         summary=row.summary,
         claims=row.claims,
         topics=row.topics,
