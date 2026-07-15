@@ -1,4 +1,6 @@
 import json
+import re
+from urllib.parse import urlparse
 
 import httpx
 from openai import OpenAI
@@ -68,6 +70,16 @@ EXTRACT_SCHEMA = {
                             "extracted entities list that are directly relevant to this claim."
                         ),
                     },
+                    "time_reference": {
+                        "type": "string",
+                        "description": (
+                            "The year (or year range) the claim's central event actually happened, e.g. "
+                            "'2022' or '2021-2022'. If the text doesn't state a year, use your own "
+                            "knowledge of when the named law/program/event occurred (e.g. the Bipartisan "
+                            "Infrastructure Law was signed in 2021, the CHIPS Act in 2022). If you genuinely "
+                            "don't know or it's not a dated event, use 'unspecified'."
+                        ),
+                    },
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                 },
                 "required": [
@@ -77,6 +89,7 @@ EXTRACT_SCHEMA = {
                     "explanation",
                     "context",
                     "related_entities",
+                    "time_reference",
                     "confidence",
                 ],
             },
@@ -165,46 +178,56 @@ def extract(text: str, speaker: str | None = None) -> dict:
         if speaker
         else ""
     )
-    resp = client.chat.completions.create(
-        model=settings.openai_model,
-        max_tokens=4096,
-        tools=[EXTRACT_TOOL],
-        tool_choice={"type": "function", "function": {"name": "record_analysis"}},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You analyze political text and return structured output via the "
-                    "record_analysis tool. Always call the tool exactly once. You are especially "
-                    "careful to distinguish objectively verifiable factual claims from opinions, "
-                    "predictions, rhetorical flourishes, and hypotheticals.\n\n" + CLAIM_RULES
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"{speaker_line}"
-                    "Analyze the following political text. First identify its key ideas - the "
-                    "actual points it's trying to make, not just topics it mentions in passing. "
-                    "Then extract a concise summary, topics, and verifiable factual claims that "
-                    "each directly support one of those key ideas, applying the claim rules from "
-                    "the system prompt strictly. Ignore incidental context and claims that aren't "
-                    "relevant to the key ideas, even if technically verifiable - focus on quality "
-                    "and relevance over exhaustively listing everything checkable. Also extract "
-                    "named entities. For each claim, include a verbatim quote of the source "
-                    "sentence, a brief explanation of what it asserts and why it's checkable, "
-                    "surrounding context, the related entities involved, and a confidence score. "
-                    "The quote field must be an exact character-for-character substring of the "
-                    "original text below.\n\n"
-                    f"---\n{text}\n---"
-                ),
-            },
-        ],
-    )
-    msg = resp.choices[0].message
-    if msg.tool_calls:
-        return json.loads(msg.tool_calls[0].function.arguments)
-    raise RuntimeError("Model did not return structured output")
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You analyze political text and return structured output via the "
+                "record_analysis tool. Always call the tool exactly once. You are especially "
+                "careful to distinguish objectively verifiable factual claims from opinions, "
+                "predictions, rhetorical flourishes, and hypotheticals.\n\n" + CLAIM_RULES
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"{speaker_line}"
+                "Analyze the following political text. First identify its key ideas - the "
+                "actual points it's trying to make, not just topics it mentions in passing. "
+                "Then extract a concise summary, topics, and verifiable factual claims that "
+                "each directly support one of those key ideas, applying the claim rules from "
+                "the system prompt strictly. Ignore incidental context and claims that aren't "
+                "relevant to the key ideas, even if technically verifiable - focus on quality "
+                "and relevance over exhaustively listing everything checkable. Also extract "
+                "named entities. For each claim, include a verbatim quote of the source "
+                "sentence, a brief explanation of what it asserts and why it's checkable, "
+                "surrounding context, the related entities involved, the year/time period the "
+                "claim's underlying event actually happened (using your own knowledge of when "
+                "named laws/programs occurred if the text doesn't state it), and a confidence "
+                "score. The quote field must be an exact character-for-character substring of the "
+                "original text below.\n\n"
+                f"---\n{text}\n---"
+            ),
+        },
+    ]
+
+    last_error: Exception = RuntimeError("Model did not return structured output")
+    for _ in range(3):
+        resp = client.chat.completions.create(
+            model=settings.openai_model,
+            max_tokens=4096,
+            tools=[EXTRACT_TOOL],
+            tool_choice={"type": "function", "function": {"name": "record_analysis"}},
+            messages=messages,
+        )
+        msg = resp.choices[0].message
+        if not msg.tool_calls:
+            continue
+        try:
+            return json.loads(msg.tool_calls[0].function.arguments)
+        except json.JSONDecodeError as e:
+            last_error = e
+    raise last_error
 
 
 SOCIAL_MEDIA_DOMAINS = [
@@ -245,6 +268,14 @@ PREFERRED_DOMAIN_SCORES: list[tuple[str, int]] = [
     ("factcheck.org", 2),
     ("politifact.com", 2),
     ("snopes.com", 2),
+    ("yahoo.com", 2),
+    ("cnn.com", 2),
+    ("nbcnews.com", 2),
+    ("abcnews.go.com", 2),
+    ("cbsnews.com", 2),
+    ("usatoday.com", 2),
+    ("theguardian.com", 2),
+    ("axios.com", 2),
 ]
 
 
@@ -253,7 +284,48 @@ def _domain_score(url: str) -> int:
     return max((score for suffix, score in PREFERRED_DOMAIN_SCORES if suffix in url), default=0)
 
 
-def search_sources(query: str, k: int = 3) -> list[dict]:
+def _speaker_name_slugs(speaker: str | None) -> list[str]:
+    if not speaker:
+        return []
+    return [w.lower() for w in re.findall(r"[A-Za-z]+", speaker) if len(w) >= 4]
+
+
+def _is_speaker_own_site(url: str, speaker_slugs: list[str]) -> bool:
+    if not speaker_slugs:
+        return False
+    netloc = urlparse(url.lower()).netloc
+    if not any(slug in netloc for slug in speaker_slugs):
+        return False
+    # Only treat it as a self-published source if the domain also looks like an
+    # official/campaign site for a person, not e.g. a news article whose path
+    # happens to mention the speaker (path isn't checked - only the domain is).
+    return (
+        netloc.endswith((".gov", ".house.gov", ".senate.gov"))
+        or "forcongress" in netloc
+        or "campaign" in netloc
+    )
+
+
+_YEAR_RE = re.compile(r"\b(19[5-9]\d|20[0-4]\d)\b")
+# Tavily's basic-search snippets often lead with a scraped "Mon D, YYYY —" publish
+# date (e.g. "Aug 16, 2022 — The law allocates..."); there's no structured
+# published_date field at this search depth, so this is the only date signal we have.
+_CONTENT_DATE_RE = re.compile(r"\b[A-Z][a-z]{2,8}\.?\s+\d{1,2},\s+(\d{4})\b")
+
+
+def _parse_claim_year(time_reference: str | None) -> int | None:
+    if not time_reference:
+        return None
+    years = [int(y) for y in _YEAR_RE.findall(time_reference)]
+    return min(years) if years else None
+
+
+def _parse_content_year(content: str) -> int | None:
+    m = _CONTENT_DATE_RE.search(content or "")
+    return int(m.group(1)) if m else None
+
+
+def search_sources(query: str, k: int = 3, speaker: str | None = None, claim_year: int | None = None) -> list[dict]:
     if not settings.tavily_api_key:
         return []
     r = httpx.post(
@@ -271,9 +343,35 @@ def search_sources(query: str, k: int = 3) -> list[dict]:
     r.raise_for_status()
     data = r.json()
     results = data.get("results", [])
-    # Primary signal is Tavily's own relevance score; the domain preference is only
-    # a small nudge so an irrelevant .edu/.org page can't outrank a relevant result.
-    results.sort(key=lambda x: x.get("score", 0) + _domain_score(x.get("url", "")) * 0.05, reverse=True)
+    # Drop the speaker's own official/campaign site - it's a primary source, not
+    # independent verification, and otherwise tends to crowd out real coverage.
+    speaker_slugs = _speaker_name_slugs(speaker)
+    results = [x for x in results if not _is_speaker_own_site(x.get("url", ""), speaker_slugs)]
+    # Drop bare homepages (e.g. "house.gov" with no path) - they're never specific
+    # enough to verify a claim, and the domain boost below would otherwise let a
+    # trusted TLD rescue an essentially content-free result into the top ranks.
+    results = [x for x in results if urlparse(x.get("url", "")).path not in ("", "/")]
+
+    def _score(x: dict) -> float:
+        base = x.get("score", 0)
+        # Only apply the domain-trust nudge once a result has already cleared a
+        # basic relevance bar - otherwise a near-irrelevant page (Tavily score
+        # near 0) can outrank genuinely relevant results purely by being on a
+        # trusted domain, which defeats the "small nudge" intent.
+        score = base + (_domain_score(x.get("url", "")) * 0.05 if base >= 0.15 else 0)
+        if claim_year is not None:
+            content_year = _parse_content_year(x.get("content", ""))
+            # Only penalize when we're confident the article predates the claimed
+            # event by more than a year - a 1yr buffer covers pre-announcement/
+            # proposal coverage without letting genuinely stale articles rank high.
+            if content_year is not None and content_year < claim_year - 1:
+                score -= 0.5
+        return score
+
+    # Primary signal is Tavily's own relevance score; the domain preference and
+    # date penalty are only small nudges so a single mismatch can't flip the order
+    # of two otherwise-similar results.
+    results.sort(key=_score, reverse=True)
     return [
         {"title": x.get("title", ""), "url": x.get("url", ""), "snippet": x.get("content", "")[:280]}
         for x in results[:k]
@@ -355,8 +453,18 @@ def run(text: str, speaker: str | None = None) -> dict:
     result = extract(text, speaker)
     for claim in result.get("claims", []):
         try:
-            query = f"{speaker}: {claim['text']}" if speaker else claim["text"]
-            sources = search_sources(query, k=3)
+            claim_query = claim.get("quote") or claim["text"]
+            # Anchor the search on whoever/whatever this specific claim is about
+            # (its related_entities), not unconditionally the speaker - a claim can
+            # be about a third party entirely (e.g. an opponent), and always
+            # appending the speaker biases search results toward the speaker's
+            # own coverage instead of the claim's actual subject.
+            context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
+            claim_year = _parse_claim_year(claim.get("time_reference"))
+            query = f"{claim_query} {' '.join(context_terms)}".strip()
+            if claim_year is not None:
+                query = f"{query} {claim_year}"
+            sources = search_sources(query, k=3, speaker=speaker, claim_year=claim_year)
             relations = explain_relevance(claim["text"], sources)
             for s in sources:
                 s["relation"] = relations.get(s["url"], "")
