@@ -18,5 +18,6 @@ class Analysis(Base):
     claims: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     topics: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     entities: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    entity_details: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -1,6 +1,6 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export type Source = { title: string; url: string; snippet?: string; relation?: string };
+export type Source = { title: string; url: string; snippet?: string; summary?: string; category?: string; relation?: string };
 export type Claim = {
   text: string;
   quote?: string;
@@ -11,6 +11,13 @@ export type Claim = {
   sources: Source[];
 };
 export type Entity = { name: string; type: string };
+export type EntityDetail = {
+  name: string;
+  type: string;
+  description: string;
+  related_claims: string[];
+  related_sources: Source[];
+};
 export type Analysis = {
   id: string;
   status: string;
@@ -20,6 +27,7 @@ export type Analysis = {
   claims: Claim[];
   topics: string[];
   entities: Entity[];
+  entity_details?: EntityDetail[];
   created_at: string;
 };
 

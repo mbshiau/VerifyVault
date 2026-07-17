@@ -7,6 +7,7 @@ import { matchClaimsToText } from "@/lib/highlight";
 import { ClaimHighlightedText } from "./ClaimHighlighter";
 import { ClaimsSidebar } from "./ClaimsSidebar";
 import { AnnotationLayer } from "./AnnotationLayer";
+import { EntityDetails } from "./EntityDetails";
 
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -174,17 +175,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
               </section>
 
               {data.entities.length > 0 && (
-                <section>
-                  <h2 className="mb-2 text-lg font-semibold">Entities</h2>
-                  <ul className="grid grid-cols-2 gap-2 text-sm">
-                    {data.entities.map((e, i) => (
-                      <li key={i} className="rounded border border-neutral-200 bg-white px-3 py-2">
-                        <span className="font-medium">{e.name}</span>{" "}
-                        <span className="text-xs text-neutral-500">({e.type})</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                <EntityDetails entities={data.entity_details || []} />
               )}
             </>
           )}
