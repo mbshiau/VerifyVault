@@ -459,34 +459,36 @@ def calculate_confidence(
     confidence = 0.5
     factors = []
     
-    # Factor 1: Source verification (0-0.3)
+    # Factor 1: Source verification (0-0.35)
+    source_factor_desc = ""
     if sources:
         supporting_count = sum(
             1 for url, relation in source_relations.items()
-            if relation and any(w in relation.lower() for w in ["support", "confirm", "verify", "corroborate"])
+            if relation and any(w in relation.lower() for w in ["support", "confirm", "verify", "corroborate", "affirm"])
         )
         contradicting_count = sum(
             1 for url, relation in source_relations.items()
-            if relation and any(w in relation.lower() for w in ["contradict", "dispute", "refute", "deny"])
+            if relation and any(w in relation.lower() for w in ["contradict", "dispute", "refute", "deny", "challenge"])
         )
         
         if contradicting_count > 0:
-            source_boost = -0.2
-            factors.append(f"contradicted by {contradicting_count} source(s)")
+            source_boost = -0.25
+            source_factor_desc = f"Contradicted by {contradicting_count} article(s)"
         elif supporting_count >= len(sources):
-            source_boost = 0.3
-            factors.append(f"supported by all {len(sources)} source(s)")
+            source_boost = 0.35
+            source_factor_desc = f"Supported by all {len(sources)} article(s)"
         elif supporting_count > 0:
-            source_boost = 0.15 + (supporting_count / len(sources)) * 0.15
-            factors.append(f"supported by {supporting_count}/{len(sources)} source(s)")
+            source_boost = 0.15 + (supporting_count / len(sources)) * 0.2
+            source_factor_desc = f"Supported by {supporting_count} out of {len(sources)} article(s)"
         else:
             source_boost = 0.05
-            factors.append(f"mentioned in {len(sources)} source(s)")
+            source_factor_desc = f"Mentioned in {len(sources)} article(s), relationship unclear"
         confidence += source_boost
+        factors.append(f"• {source_factor_desc}")
     else:
-        factors.append("no sources found")
+        factors.append("• No corroborating articles found")
     
-    # Factor 2: Date relevance (0-0.2)
+    # Factor 2: Date relevance (0-0.25)
     claim_year = _parse_claim_year(claim.get("time_reference"))
     if claim_year:
         from datetime import datetime
@@ -494,29 +496,36 @@ def calculate_confidence(
         years_old = current_year - claim_year
         
         if years_old <= 1:
-            date_boost = 0.2
-            factors.append(f"recent claim ({claim_year})")
-        elif years_old <= 5:
-            date_boost = 0.1
-            factors.append(f"from {claim_year}")
+            date_boost = 0.25
+            date_desc = f"Recent claim (event from {claim_year})"
+        elif years_old <= 3:
+            date_boost = 0.15
+            date_desc = f"Current topic (event from {claim_year})"
+        elif years_old <= 7:
+            date_boost = 0.08
+            date_desc = f"Moderately recent (event from {claim_year})"
         elif years_old <= 10:
-            date_boost = 0.05
-            factors.append(f"from {claim_year}")
+            date_boost = 0.03
+            date_desc = f"Older claim (event from {claim_year})"
         else:
             date_boost = 0.0
-            factors.append(f"from {claim_year} (dated)")
+            date_desc = f"Historical claim (event from {claim_year})"
         confidence += date_boost
+        factors.append(f"• {date_desc}")
+    else:
+        factors.append("• Timing not specified")
     
-    # Factor 3: Speaker credibility (0-0.2)
+    # Factor 3: Speaker credibility (0-0.25)
     if speaker:
         credibility_score = _assess_speaker_credibility(speaker)
-        factors.append(f"speaker credibility: {credibility_score['level']}")
+        speaker_desc = f"Speaker credibility: {credibility_score['level']}"
         confidence += credibility_score['boost']
+        factors.append(f"• {speaker_desc}")
     
     # Clamp to [0, 1]
     confidence = max(0.0, min(1.0, confidence))
     
-    explanation = "; ".join(factors)
+    explanation = "\n".join(factors)
     return confidence, explanation
 
 
@@ -525,16 +534,16 @@ def _assess_speaker_credibility(speaker: str) -> dict[str, float | str]:
     speaker_lower = speaker.lower()
     
     # Government officials typically have higher credibility
-    if any(w in speaker_lower for w in ["senator", "congressman", "representative", "judge", "secretary", "president", "minister"]):
-        return {"level": "High", "boost": 0.2}
+    if any(w in speaker_lower for w in ["senator", "congressman", "representative", "judge", "secretary", "president", "minister", "governor"]):
+        return {"level": "High (Government Official)", "boost": 0.25}
     
     # Academics and researchers
-    if any(w in speaker_lower for w in ["professor", "dr.", "phd", "researcher"]):
-        return {"level": "High", "boost": 0.2}
+    if any(w in speaker_lower for w in ["professor", "dr.", "phd", "researcher", "scientist"]):
+        return {"level": "High (Academic/Expert)", "boost": 0.25}
     
     # Advocacy groups and organizations
-    if any(w in speaker_lower for w in ["director", "executive", "founder"]):
-        return {"level": "Medium", "boost": 0.1}
+    if any(w in speaker_lower for w in ["director", "executive", "founder", "ceo", "cto"]):
+        return {"level": "Medium (Organization Leader)", "boost": 0.12}
     
     # Unknown or unverified speakers
     return {"level": "Unknown", "boost": 0.0}
