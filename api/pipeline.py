@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import re
 from urllib.parse import urlparse
@@ -789,6 +790,128 @@ def search_entity_sources(entity_name: str, entity_type: str, k: int = 3) -> lis
         return []
 
 
+MAX_FACT_CHECKED_CLAIMS = 8
+MAX_PARALLEL_WORKERS = 5
+
+
+def _is_date_like(name: str) -> bool:
+    """Detect date-like or schedule-like entity names so they can be filtered out."""
+    if not name:
+        return False
+    n = name.strip()
+    # numeric date formats
+    if re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", n):
+        return True
+    if re.search(r"\b\d{4}-\d{2}-\d{2}\b", n):
+        return True
+    # month names with day/year
+    if re.search(
+        r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?"
+        r"|sep(?:t(?:ember)?)|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b\s+\d{1,2}(?:,\s*\d{4})?",
+        n,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    # weekday + date tokens
+    if re.search(
+        r"\b(?:mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+        n,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    # time tokens
+    if re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)?\b", n, flags=re.IGNORECASE):
+        return True
+    # obvious placeholder tokens
+    if any(tok in n for tok in ("monthfull", "deltahours", "deltaMinutes", "ampm", "[hour]", "[minute]")):
+        return True
+    return False
+
+
+def _fact_check_claim(claim: dict, speaker: str | None) -> None:
+    """Search for and rank sources for one claim, then score confidence. Mutates claim in place."""
+    try:
+        claim_query = claim.get("quote") or claim["text"]
+        # Anchor the search on whoever/whatever this specific claim is about
+        # (its related_entities), not unconditionally the speaker - a claim can
+        # be about a third party entirely (e.g. an opponent), and always
+        # appending the speaker biases search results toward the speaker's
+        # own coverage instead of the claim's actual subject.
+        context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
+        claim_year = _parse_claim_year(claim.get("time_reference"))
+        query = f"{claim_query} {' '.join(context_terms)}".strip()
+        if claim_year is not None:
+            query = f"{query} {claim_year}"
+        # If the claim looks like a schedule/event (contains a time or words like "markup"/"subcommittee"),
+        # bias the query toward calendars/events and government sites.
+        is_schedule_like = bool(
+            re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)\b", query, flags=re.IGNORECASE)
+            or re.search(r"\b(markup|subcommittee|hearing|meeting|schedule|calendar)\b", query, flags=re.IGNORECASE)
+        )
+        if is_schedule_like:
+            query = query + " calendar OR schedule OR event site:house.gov OR site:senate.gov"
+        # Request a larger set and then re-rank to prioritize event/calendar pages
+        sources = search_sources(query, k=6, speaker=speaker, claim_year=claim_year)
+        # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
+        claim_tokens = [t.lower() for t in re.findall(r"[A-Za-z]+", claim_query) if len(t) > 2]
+
+        def _source_score(s: dict) -> float:
+            score = 0.0
+            title = (s.get("title", "") or "").lower()
+            snippet = (s.get("snippet", "") or "").lower()
+            url = s.get("url", "") or ""
+            # boost if title or snippet contains event-related tokens from the claim
+            for tok in ("markup", "subcommittee", "hearing", "committee", "calendar", "schedule", "markup"):
+                if tok in title or tok in snippet or tok in url.lower():
+                    score += 1.0
+            # boost if snippet/title mentions specific numeric tokens (six, seven, 6, 7)
+            for numtok in ("six", "seven", "6", "7"):
+                if numtok in title or numtok in snippet:
+                    score += 0.8
+            # small boost for containing any claim tokens
+            for ct in claim_tokens[:10]:
+                if ct in title or ct in snippet:
+                    score += 0.1
+            # domain trust nudges already applied, keep that as tiebreaker
+            score += _domain_score(url) * 0.01
+            return score
+
+        sources.sort(key=_source_score, reverse=True)
+        # Trim to the top 3
+        sources = sources[:3]
+        relations = explain_relevance(claim["text"], sources)
+        for s in sources:
+            s["relation"] = relations.get(s["url"], "")
+        claim["sources"] = sources
+
+        # Calculate confidence based on sources, date, and speaker credibility
+        confidence, confidence_explanation = calculate_confidence(claim, sources, relations, speaker=speaker)
+        claim["confidence"] = confidence
+        claim["confidence_explanation"] = confidence_explanation
+    except Exception:
+        claim["sources"] = []
+        claim["confidence_explanation"] = "error calculating confidence"
+
+
+def _build_entity_detail(
+    entity: dict, claims: list[dict], entity_descriptions: dict[str, str]
+) -> dict:
+    entity_name = entity.get("name", "")
+    entity_type = entity.get("type", "")
+    related_claims = [c["text"] for c in claims if entity_name in (c.get("related_entities") or [])]
+    try:
+        related_sources = search_entity_sources(entity_name, entity_type, k=2)
+    except Exception:
+        related_sources = []
+    return {
+        "name": entity_name,
+        "type": entity_type,
+        "description": entity_descriptions.get(entity_name, ""),
+        "related_claims": related_claims,
+        "related_sources": related_sources,
+    }
+
+
 def run(text: str, speaker: str | None = None) -> dict:
     result = extract(text, speaker)
     # Extraction can surface more claims than are worth fact-checking - keep only
@@ -797,132 +920,33 @@ def run(text: str, speaker: str | None = None) -> dict:
     claims = result.get("claims", [])
     claims.sort(key=lambda c: c.get("materiality", 0), reverse=True)
     result["claims"] = claims[:MAX_FACT_CHECKED_CLAIMS]
-    for claim in result["claims"]:
-
-        # Helper: detect date-like or schedule-like entity names to suppress them
-        def _is_date_like(name: str) -> bool:
-            if not name:
-                return False
-            n = name.strip()
-            # numeric date formats
-            if re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", n):
-                return True
-            if re.search(r"\b\d{4}-\d{2}-\d{2}\b", n):
-                return True
-            # month names with day/year
-            if re.search(r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b\s+\d{1,2}(?:,\s*\d{4})?", n, flags=re.IGNORECASE):
-                return True
-            # weekday + date tokens
-            if re.search(r"\b(?:mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", n, flags=re.IGNORECASE):
-                return True
-            # time tokens
-            if re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)?\b", n, flags=re.IGNORECASE):
-                return True
-            # obvious placeholder tokens
-            if any(tok in n for tok in ("monthfull", "deltahours", "deltaMinutes", "ampm", "[hour]", "[minute]")):
-                return True
-            return False
 
     # Filter out date-like entities from the extracted entities list
     original_entities = result.get("entities", [])
-    filtered_entities = [e for e in original_entities if not _is_date_like(e.get("name", ""))]
-    result["entities"] = filtered_entities
+    result["entities"] = [e for e in original_entities if not _is_date_like(e.get("name", ""))]
 
     # Remove date-like tokens from claims' related_entities lists
-    for claim in result.get("claims", []):
+    for claim in result["claims"]:
         rels = claim.get("related_entities", []) or []
         claim["related_entities"] = [r for r in rels if not _is_date_like(r)]
 
-    for claim in result.get("claims", []):
-        try:
-            claim_query = claim.get("quote") or claim["text"]
-            # Anchor the search on whoever/whatever this specific claim is about
-            # (its related_entities), not unconditionally the speaker - a claim can
-            # be about a third party entirely (e.g. an opponent), and always
-            # appending the speaker biases search results toward the speaker's
-            # own coverage instead of the claim's actual subject.
-            context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
-            claim_year = _parse_claim_year(claim.get("time_reference"))
-            query = f"{claim_query} {' '.join(context_terms)}".strip()
-            if claim_year is not None:
-                query = f"{query} {claim_year}"
-            # If the claim looks like a schedule/event (contains a time or words like "markup"/"subcommittee"),
-            # bias the query toward calendars/events and government sites.
-            is_schedule_like = bool(re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)\b", query, flags=re.IGNORECASE) or re.search(r"\b(markup|subcommittee|hearing|meeting|schedule|calendar)\b", query, flags=re.IGNORECASE))
-            if is_schedule_like:
-                query = query + " calendar OR schedule OR event site:house.gov OR site:senate.gov"
-            # Request a larger set and then re-rank to prioritize event/calendar pages
-            sources = search_sources(query, k=6, speaker=speaker, claim_year=claim_year)
-            # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
-            claim_tokens = [t.lower() for t in re.findall(r"[A-Za-z]+", claim_query) if len(t) > 2]
-            def _source_score(s: dict) -> float:
-                score = 0.0
-                title = (s.get("title", "") or "").lower()
-                snippet = (s.get("snippet", "") or "").lower()
-                url = s.get("url", "") or ""
-                # boost if title or snippet contains event-related tokens from the claim
-                for tok in ("markup", "subcommittee", "hearing", "committee", "calendar", "schedule", "markup"):
-                    if tok in title or tok in snippet or tok in url.lower():
-                        score += 1.0
-                # boost if snippet/title mentions specific numeric tokens (six, seven, 6, 7)
-                for numtok in ("six", "seven", "6", "7"):
-                    if numtok in title or numtok in snippet:
-                        score += 0.8
-                # small boost for containing any claim tokens
-                for ct in claim_tokens[:10]:
-                    if ct in title or ct in snippet:
-                        score += 0.1
-                # domain trust nudges already applied, keep that as tiebreaker
-                score += _domain_score(url) * 0.01
-                return score
-            sources.sort(key=_source_score, reverse=True)
-            # Trim to the top 3
-            sources = sources[:3]
-            relations = explain_relevance(claim["text"], sources)
-            for s in sources:
-                s["relation"] = relations.get(s["url"], "")
-            claim["sources"] = sources
-            
-            # Calculate confidence based on sources, date, and speaker credibility
-            confidence, confidence_explanation = calculate_confidence(
-                claim, sources, relations, speaker=speaker
-            )
-            claim["confidence"] = confidence
-            claim["confidence_explanation"] = confidence_explanation
-        except Exception:
-            claim["sources"] = []
-            claim["confidence_explanation"] = "error calculating confidence"
-    
-    # Enrich entities with descriptions and related sources
-    entities = result.get("entities", [])
+    # Fact-check claims in parallel - each claim's search/relevance/confidence work is
+    # independent of the others, and running them one at a time (the previous behavior)
+    # meant a speech with several claims could take minutes even though most of that
+    # time was spent waiting on network calls, not computing anything.
+    if result["claims"]:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
+            list(pool.map(lambda c: _fact_check_claim(c, speaker), result["claims"]))
+
+    # Enrich entities with descriptions and related sources, also in parallel.
+    entities = result["entities"]
     entity_descriptions = enrich_entity_descriptions(text, entities)
-    
-    entity_details = []
-    for entity in entities:
-        entity_name = entity.get("name", "")
-        entity_type = entity.get("type", "")
-        
-        # Find related claims for this entity
-        related_claims = [
-            claim["text"]
-            for claim in result.get("claims", [])
-            if entity_name in claim.get("related_entities", [])
-        ]
-        
-        # Search for related sources/news about this entity
-        try:
-            related_sources = search_entity_sources(entity_name, entity_type, k=2)
-        except Exception:
-            related_sources = []
-        
-        entity_detail = {
-            "name": entity_name,
-            "type": entity_type,
-            "description": entity_descriptions.get(entity_name, ""),
-            "related_claims": related_claims,
-            "related_sources": related_sources,
-        }
-        entity_details.append(entity_detail)
-    
-    result["entity_details"] = entity_details
+    if entities:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
+            result["entity_details"] = list(
+                pool.map(lambda e: _build_entity_detail(e, result["claims"], entity_descriptions), entities)
+            )
+    else:
+        result["entity_details"] = []
+
     return result
