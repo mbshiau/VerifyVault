@@ -9,6 +9,15 @@ class AnalyzeRequest(BaseModel):
     speaker: str | None = Field(default=None, max_length=200)
 
 
+class CleanTextRequest(BaseModel):
+    text: str
+
+
+class CleanTextResponse(BaseModel):
+    without_hashes: str
+    without_hashes_and_asterisks: str
+
+
 class Source(BaseModel):
     title: str
     url: str
@@ -23,12 +32,16 @@ class Claim(BaseModel):
     context: str = ""
     related_entities: list[str] = []
     confidence: float
+    confidence_explanation: str = ""
     sources: list[Source] = []
 
 
 class Entity(BaseModel):
     name: str
     type: str  # person | organization | law | program | location
+    description: str = ""
+    related_claims: list[str] = []
+    related_sources: list[Source] = []
 
 
 class AnalysisOut(BaseModel):
@@ -40,4 +53,5 @@ class AnalysisOut(BaseModel):
     claims: list[Claim]
     topics: list[str]
     entities: list[Entity]
+    entity_details: list[Entity] = []
     created_at: datetime

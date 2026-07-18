@@ -8,7 +8,7 @@ import pipeline
 from config import settings
 from db import Base, SessionLocal, engine, get_db
 from models import Analysis
-from schemas import AnalysisOut, AnalyzeRequest
+from schemas import AnalysisOut, AnalyzeRequest, CleanTextRequest, CleanTextResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +35,7 @@ def _run_pipeline(analysis_id: UUID, text: str) -> None:
             row.topics = result.get("topics", [])
             row.claims = result.get("claims", [])
             row.entities = result.get("entities", [])
+            row.entity_details = result.get("entity_details", [])
             row.status = "complete"
         except Exception as e:
             row.status = f"failed: {e.__class__.__name__}"
@@ -46,6 +47,16 @@ def _run_pipeline(analysis_id: UUID, text: str) -> None:
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+@app.post("/clean", response_model=CleanTextResponse)
+def clean_text(payload: CleanTextRequest):
+    without_hashes = payload.text.replace("#", "").strip()
+    without_both = payload.text.replace("#", "").replace("*", "").strip()
+    return CleanTextResponse(
+        without_hashes=without_hashes,
+        without_hashes_and_asterisks=without_both
+    )
 
 
 @app.post("/analyze", response_model=AnalysisOut)
@@ -68,6 +79,7 @@ def create_analysis(
         claims=[],
         topics=[],
         entities=[],
+        entity_details=[],
         created_at=row.created_at,
     )
 
@@ -86,5 +98,6 @@ def get_analysis(analysis_id: UUID, db: Session = Depends(get_db)):
         claims=row.claims,
         topics=row.topics,
         entities=row.entities,
+        entity_details=row.entity_details,
         created_at=row.created_at,
     )
