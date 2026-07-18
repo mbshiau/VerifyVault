@@ -80,6 +80,20 @@ EXTRACT_SCHEMA = {
                             "don't know or it's not a dated event, use 'unspecified'."
                         ),
                     },
+                    "materiality": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": (
+                            "How much this claim matters to the speaker's argument - not how "
+                            "interesting or colorful it is. Ask: if this specific claim were proven "
+                            "false, would it substantially weaken the speaker's point? 0.8-1.0 = "
+                            "central to the argument, which falls apart or is seriously undercut if "
+                            "this is false. 0.4-0.7 = a relevant supporting detail that weakens the "
+                            "argument somewhat if false. 0.0-0.3 = a detail whose truth barely "
+                            "matters to the point being made, even though it's technically checkable."
+                        ),
+                    },
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                 },
                 "required": [
@@ -90,6 +104,7 @@ EXTRACT_SCHEMA = {
                     "context",
                     "related_entities",
                     "time_reference",
+                    "materiality",
                     "confidence",
                 ],
             },
@@ -155,6 +170,15 @@ Do not scan the text line by line looking for anything technically checkable. In
 2. Then, for each key idea, find the claim(s) that most directly support or assert it.
 3. Skip statements that are merely incidental context, scene-setting, or asides - even if they contain a verifiable fact - if they don't support one of the key ideas. A passing mention that isn't part of what the speaker is actually trying to argue is not worth flagging.
 
+## Materiality: score how much each claim matters to the argument
+
+Being checkable and being relevant to a key idea isn't enough on its own - claims also need a materiality score reflecting how much their truth matters. The test: if this specific claim were proven false, would it substantially weaken the speaker's point?
+
+Example - a speech arguing a public official is corrupt:
+- "He received a $400 million private jet as a gift." -> materiality ~0.9. If false, the corruption argument weakens a lot - this is central.
+- "Federal agents knocked on former employees' doors." -> materiality ~0.5. Somewhat relevant supporting detail, but the core argument doesn't hinge on it.
+- "He watches everything." -> materiality ~0.1. Whether literally true or not barely matters to the argument - it's color, not substance.
+
 ## Worked examples
 
 Segment: "I represent a rural committee outside of Chicago. In the last year we have had closures. Those facilities need help to stay open. I have a bill to get that moving. ... We will have fewer providers. If you have access to a nurse practitioner in your community and there is no physician what is he supposed to do? ... It doesn't have to explode the deficit."
@@ -203,9 +227,10 @@ def extract(text: str, speaker: str | None = None) -> dict:
                 "sentence, a brief explanation of what it asserts and why it's checkable, "
                 "surrounding context, the related entities involved, the year/time period the "
                 "claim's underlying event actually happened (using your own knowledge of when "
-                "named laws/programs occurred if the text doesn't state it), and a confidence "
-                "score. The quote field must be an exact character-for-character substring of the "
-                "original text below.\n\n"
+                "named laws/programs occurred if the text doesn't state it), a materiality score "
+                "per the system prompt's rules (how much the argument depends on this claim being "
+                "true, not how interesting it is), and a confidence score. The quote field must be "
+                "an exact character-for-character substring of the original text below.\n\n"
                 f"---\n{text}\n---"
             ),
         },
@@ -449,9 +474,18 @@ def explain_relevance(claim_text: str, sources: list[dict]) -> dict[str, str]:
     return {}
 
 
+MAX_FACT_CHECKED_CLAIMS = 8
+
+
 def run(text: str, speaker: str | None = None) -> dict:
     result = extract(text, speaker)
-    for claim in result.get("claims", []):
+    # Extraction can surface more claims than are worth fact-checking - keep only
+    # the ones that matter most to the argument (highest materiality) and drop the
+    # rest, rather than spending search calls on claims whose truth is incidental.
+    claims = result.get("claims", [])
+    claims.sort(key=lambda c: c.get("materiality", 0), reverse=True)
+    result["claims"] = claims[:MAX_FACT_CHECKED_CLAIMS]
+    for claim in result["claims"]:
         try:
             claim_query = claim.get("quote") or claim["text"]
             # Anchor the search on whoever/whatever this specific claim is about
