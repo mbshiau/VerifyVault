@@ -146,24 +146,43 @@ EXTRACT_TOOL = {
 CLAIM_RULES = """\
 ## What counts as a verifiable factual claim
 
-INCLUDE a statement if it asserts something objectively checkable against evidence, e.g.:
+IINCLUDE a statement only if it asserts a concrete, specific factual claim that could reasonably be verified using evidence such as official records, legislation, government data, court documents, voting records, direct quotations, public statements, or reliable reporting.
+
+A claim should provide meaningful factual information that could plausibly be true or false—not merely describe a goal, intention, or political message.
+
+Examples of claims to INCLUDE:
 - An event occurred or a condition exists (e.g. "we have had closures").
-- A document, bill, law, or regulation exists or was proposed/introduced (e.g. "I have a bill to get that moving").
-- A person or group holds a role, took an action, or made a decision (e.g. "the Department of Education is trying to roll back access").
-- A statistic, quantity, date, or comparison is stated as fact.
-Extract the claim even if its accuracy is disputed or unconfirmed - the assertion itself being checkable is what matters, not whether it's true. If a statement mixes opinion and fact, extract only the factual portion as the claim. If a claim's own existence is uncertain (e.g. a bill name that may be garbled), still extract it, but lower its confidence score.
+- A person or organization performed a specific, identifiable action or made a specific decision (e.g. "Trump called Abbott", "Federal agents demanded records", "the Department of Education introduced a regulation").
+- A claim about a bill, law, regulation, or policy should only be extracted if the statement makes a factual assertion about its contents, status, sponsors, effects, passage, implementation, or other objectively verifiable characteristics. Merely mentioning or advocating for a bill does not constitute a claim.
+- A person holds or held a particular office or role.
+- A statistic, quantity, date, ranking, comparison, or measurable trend is stated as fact.
+- A claim about a person's voting record, public position, sponsorship of legislation, fundraising, finances, criminal proceedings, government actions, or official conduct.
+- A direct factual allegation about a public official or organization (e.g. "James Talarico opposes voter ID", "Trump received a $400 million jet").
+
+Extract the claim even if it is disputed, misleading, or likely false—the question is whether the factual assertion itself can be verified.
+
+If a sentence mixes factual content with opinion, extract only the factual portion.
+
+If a claim's own existence is uncertain (for example, a bill name may be garbled by transcription), still extract it but assign a lower confidence score.
 
 EXCLUDE a statement if it is only:
-- An opinion or value judgment (e.g. "that's broken", "devastating").
-- A prediction about the future with no concrete factual anchor (e.g. "we will have fewer providers"), including hedged speculation using words like "may" or "could" (e.g. "technology that may displace a lot of entry-level jobs").
+- An opinion, insult, value judgment, or subjective characterization (e.g. "too radical", "devastating", "the most corrupt president").
+- Campaign messaging, slogans, or political branding (e.g. "Make America Great Again", "America is back").
+- A broad statement of effort, intent, mission, or policy objective rather than a discrete factual assertion (e.g. "working every day to lower costs", "fighting for free and fair elections", "protecting the American people", "securing the border", "delivering results").
+- A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for...").
+- A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs").
 - A hypothetical or conditional example (e.g. "if you have access to a nurse practitioner...").
 - A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning").
-- A causal/policy argument stated as a generalization rather than a discrete checkable fact (e.g. "that's how we drive down costs").
-- A question, including rhetorical or interview questions directed at someone else (e.g. "how should policymakers respond?") - questions assert nothing and are never claims.
-- A generic observation or truism that is trivially true and carries no specific, meaningful content worth checking (e.g. "people are graduating from high school and college"). A statement only counts as a claim if it asserts something specific enough that it could plausibly be false.
-- A subjective characterization of mood, sentiment, or attention around a topic (e.g. "there's a lot of anxiety around AI").
-- Speculative attribution of cause or motive without evidence (e.g. "some of that angst has to do with the advent of this new technology").
+- A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs").
+- A question, including rhetorical or interview questions.
+- A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college").
+- A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI").
+- Speculative attribution of motive, intent, or causation without supporting evidence (e.g. "Trump is targeting me because I'm running for president", "some of that anxiety is due to AI").
 
+When deciding whether to extract a statement, ask:
+**Would an independent fact-checking organization realistically write a fact check evaluating this specific statement?**
+
+If the answer is no because the statement is too vague, aspirational, rhetorical, or subjective, do not extract it as a claim.
 ## Work top-down from key ideas, not bottom-up from every sentence
 
 Do not scan the text line by line looking for anything technically checkable. Instead:
@@ -241,7 +260,7 @@ def extract(text: str, speaker: str | None = None) -> dict:
     for _ in range(3):
         resp = client.chat.completions.create(
             model=settings.openai_model,
-            max_tokens=4096,
+            max_tokens=8192,
             tools=[EXTRACT_TOOL],
             tool_choice={"type": "function", "function": {"name": "record_analysis"}},
             messages=messages,
@@ -775,23 +794,30 @@ def search_entity_sources(entity_name: str, entity_type: str, k: int = 3) -> lis
             # fallback to News
             return "News"
 
-        enriched = []
-        for x in results[:k]:
+        def _enrich(x: dict) -> dict:
             title = x.get("title", "")
             url = x.get("url", "")
             content = x.get("content", "")
-            snippet = _clean_snippet(content)
-            summary = _summarize_text(content, title)
-            category = _categorize_result(title, url, content)
-            enriched.append({"title": title, "url": url, "snippet": snippet, "summary": summary, "category": category})
+            return {
+                "title": title,
+                "url": url,
+                "snippet": _clean_snippet(content),
+                "summary": _summarize_text(content, title),
+                "category": _categorize_result(title, url, content),
+            }
 
-        return enriched
+        top_results = results[:k]
+        if not top_results:
+            return []
+        # One LLM summarization call per source - run them concurrently rather
+        # than serially, since they're independent of each other.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(top_results)) as pool:
+            return list(pool.map(_enrich, top_results))
     except Exception:
         return []
 
 
-MAX_FACT_CHECKED_CLAIMS = 8
-MAX_PARALLEL_WORKERS = 5
+MAX_PARALLEL_WORKERS = 8
 
 
 def _is_date_like(name: str) -> bool:
@@ -914,12 +940,12 @@ def _build_entity_detail(
 
 def run(text: str, speaker: str | None = None) -> dict:
     result = extract(text, speaker)
-    # Extraction can surface more claims than are worth fact-checking - keep only
-    # the ones that matter most to the argument (highest materiality) and drop the
-    # rest, rather than spending search calls on claims whose truth is incidental.
+    # Order by materiality (highest first) but don't cap the count - longer
+    # speeches legitimately surface more claims, and a fixed cap would drop
+    # real ones instead of just deprioritizing low-stakes ones in the UI.
     claims = result.get("claims", [])
     claims.sort(key=lambda c: c.get("materiality", 0), reverse=True)
-    result["claims"] = claims[:MAX_FACT_CHECKED_CLAIMS]
+    result["claims"] = claims
 
     # Filter out date-like entities from the extracted entities list
     original_entities = result.get("entities", [])
@@ -930,23 +956,22 @@ def run(text: str, speaker: str | None = None) -> dict:
         rels = claim.get("related_entities", []) or []
         claim["related_entities"] = [r for r in rels if not _is_date_like(r)]
 
-    # Fact-check claims in parallel - each claim's search/relevance/confidence work is
-    # independent of the others, and running them one at a time (the previous behavior)
-    # meant a speech with several claims could take minutes even though most of that
-    # time was spent waiting on network calls, not computing anything.
-    if result["claims"]:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
-            list(pool.map(lambda c: _fact_check_claim(c, speaker), result["claims"]))
-
-    # Enrich entities with descriptions and related sources, also in parallel.
+    # Fact-check claims and enrich entities concurrently rather than as two
+    # sequential stages - entity descriptions/details only depend on extract()'s
+    # output (claim text + related_entities, already set above), not on the
+    # fact-checked claims, so there's no reason to make one wait on the other.
     entities = result["entities"]
-    entity_descriptions = enrich_entity_descriptions(text, entities)
-    if entities:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
-            result["entity_details"] = list(
-                pool.map(lambda e: _build_entity_detail(e, result["claims"], entity_descriptions), entities)
-            )
-    else:
-        result["entity_details"] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
+        claim_futures = [pool.submit(_fact_check_claim, c, speaker) for c in result["claims"]]
+        descriptions_future = pool.submit(enrich_entity_descriptions, text, entities)
+
+        entity_descriptions = descriptions_future.result()
+        entity_futures = [
+            pool.submit(_build_entity_detail, e, result["claims"], entity_descriptions) for e in entities
+        ]
+
+        for f in claim_futures:
+            f.result()
+        result["entity_details"] = [f.result() for f in entity_futures]
 
     return result
