@@ -8,7 +8,14 @@ import pipeline
 from config import settings
 from db import Base, SessionLocal, engine, get_db
 from models import Analysis
-from schemas import AnalysisOut, AnalyzeRequest, CleanTextRequest, CleanTextResponse
+from schemas import (
+    AnalysisOut,
+    AnalyzeRequest,
+    AnalyzeSelectedClaimRequest,
+    AnalyzeSelectedClaimResponse,
+    CleanTextRequest,
+    CleanTextResponse,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -100,4 +107,22 @@ def get_analysis(analysis_id: UUID, db: Session = Depends(get_db)):
         entities=row.entities,
         entity_details=row.entity_details,
         created_at=row.created_at,
+    )
+
+
+@app.post("/analyze/{analysis_id}/claim", response_model=AnalyzeSelectedClaimResponse)
+def analyze_selected_claim(analysis_id: UUID, payload: AnalyzeSelectedClaimRequest, db: Session = Depends(get_db)):
+    row = db.get(Analysis, analysis_id)
+    if row is None:
+        raise HTTPException(404, "not found")
+    if row.status != "complete":
+        raise HTTPException(409, "analysis is not complete yet")
+    try:
+        result = pipeline.analyze_selected_claim(row.input_text, payload.selected_text, row.speaker)
+    except Exception:
+        raise HTTPException(500, "failed to analyze selected claim")
+    return AnalyzeSelectedClaimResponse(
+        is_claim=bool(result.get("is_claim")),
+        reason=result.get("reason", ""),
+        claim=result.get("claim"),
     )

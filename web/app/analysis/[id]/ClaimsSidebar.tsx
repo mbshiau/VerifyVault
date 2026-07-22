@@ -3,6 +3,72 @@
 import type { MutableRefObject } from "react";
 import { Claim } from "@/lib/api";
 
+export function ClaimDetails({ claim }: { claim: Claim }) {
+  return (
+    <div className="space-y-3 border-t border-neutral-100 px-3 pb-3 pt-2">
+      {claim.explanation && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Explanation</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-neutral-700">{claim.explanation}</p>
+        </div>
+      )}
+
+      {claim.context && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Context</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-neutral-700">{claim.context}</p>
+        </div>
+      )}
+
+      {claim.related_entities && claim.related_entities.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Related Entities</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {claim.related_entities.map((name, i) => (
+              <span key={i} className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Sources</p>
+        {claim.sources?.length > 0 ? (
+          <div className="mt-1 space-y-2">
+            {claim.sources.map((s, i) => {
+              let domain = s.url;
+              try {
+                domain = new URL(s.url).hostname.replace(/^www\./, "");
+              } catch {
+                // keep raw url if it doesn't parse
+              }
+              return (
+                <a
+                  key={i}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-md p-2 text-xs hover:bg-neutral-50"
+                >
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="truncate font-medium text-blue-700 underline">{s.title || s.url}</span>
+                    <span className="flex-none text-neutral-400">· {domain}</span>
+                  </span>
+                  {s.relation && <span className="mt-0.5 block text-neutral-600">{s.relation}</span>}
+                </a>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-0.5 text-xs text-neutral-500">No sources found.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ClaimsSidebar({
   claims,
   activeIndex,
@@ -56,84 +122,7 @@ export function ClaimsSidebar({
                 <span className="mt-0.5 flex-none text-neutral-400">{isActive ? "▾" : "▸"}</span>
               </button>
 
-              {isActive && (
-                <div className="space-y-3 border-t border-neutral-100 px-3 pb-3 pt-2">
-                  {claim.explanation && (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                        Explanation
-                      </p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-neutral-700">{claim.explanation}</p>
-                    </div>
-                  )}
-
-                  {claim.context && (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                        Context
-                      </p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-neutral-700">{claim.context}</p>
-                    </div>
-                  )}
-
-                  {claim.related_entities && claim.related_entities.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                        Related Entities
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {claim.related_entities.map((name, i) => (
-                          <span
-                            key={i}
-                            className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700"
-                          >
-                            {name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                      Sources
-                    </p>
-                    {claim.sources?.length > 0 ? (
-                      <div className="mt-1 space-y-2">
-                        {claim.sources.map((s, i) => {
-                          let domain = s.url;
-                          try {
-                            domain = new URL(s.url).hostname.replace(/^www\./, "");
-                          } catch {
-                            // keep raw url if it doesn't parse
-                          }
-                          return (
-                            <a
-                              key={i}
-                              href={s.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="block rounded-md p-2 text-xs hover:bg-neutral-50"
-                            >
-                              <span className="flex items-baseline gap-1.5">
-                                <span className="truncate font-medium text-blue-700 underline">
-                                  {s.title || s.url}
-                                </span>
-                                <span className="flex-none text-neutral-400">· {domain}</span>
-                              </span>
-                              {s.relation && (
-                                <span className="mt-0.5 block text-neutral-600">{s.relation}</span>
-                              )}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="mt-0.5 text-xs text-neutral-500">No sources found.</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              {isActive && <ClaimDetails claim={claim} />}
             </li>
           );
         })}

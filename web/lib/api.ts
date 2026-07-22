@@ -31,6 +31,12 @@ export type Analysis = {
   created_at: string;
 };
 
+export type SelectedClaimAnalysis = {
+  is_claim: boolean;
+  reason: string;
+  claim: Claim | null;
+};
+
 export async function createAnalysis(text: string, speaker?: string): Promise<Analysis> {
   const r = await fetch(`${API_URL}/analyze`, {
     method: "POST",
@@ -43,6 +49,16 @@ export async function createAnalysis(text: string, speaker?: string): Promise<An
 
 export async function getAnalysis(id: string): Promise<Analysis> {
   const r = await fetch(`${API_URL}/analyze/${id}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function analyzeSelectedClaim(id: string, selectedText: string): Promise<SelectedClaimAnalysis> {
+  const r = await fetch(`${API_URL}/analyze/${id}/claim`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ selected_text: selectedText }),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }

@@ -300,6 +300,120 @@ def extract(text: str, speaker: str | None = None) -> dict:
     raise last_error
 
 
+SELECTED_CLAIM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "is_claim": {
+            "type": "boolean",
+            "description": (
+                "True only if the selected sentence is a concrete, verifiable factual claim "
+                "that materially supports one of the text's key ideas."
+            ),
+        },
+        "reason": {
+            "type": "string",
+            "description": (
+                "If is_claim is false, explain briefly why (e.g. opinion, rhetorical framing, "
+                "question, too vague, or not relevant to the argument)."
+            ),
+        },
+        "claim": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string"},
+                "explanation": {"type": "string"},
+                "context": {"type": "string"},
+                "related_entities": {"type": "array", "items": {"type": "string"}},
+                "time_reference": {"type": "string"},
+                "materiality": {"type": "number", "minimum": 0, "maximum": 1},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+            "required": [
+                "text",
+                "explanation",
+                "context",
+                "related_entities",
+                "time_reference",
+                "materiality",
+                "confidence",
+            ],
+        },
+    },
+    "required": ["is_claim", "reason", "claim"],
+}
+
+SELECTED_CLAIM_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "record_selected_claim",
+        "description": "Validate and structure a user-selected sentence from the original text.",
+        "parameters": SELECTED_CLAIM_SCHEMA,
+    },
+}
+
+
+def analyze_selected_claim(text: str, selected_text: str, speaker: str | None = None) -> dict:
+    selected = (selected_text or "").strip()
+    if len(selected) < 8:
+        return {"is_claim": False, "reason": "Selection is too short to evaluate.", "claim": None}
+
+    def _normalize_ws(s: str) -> str:
+        return re.sub(r"\s+", " ", s or "").strip().lower()
+
+    if _normalize_ws(selected) not in _normalize_ws(text):
+        return {"is_claim": False, "reason": "Please select text directly from the original transcript.", "claim": None}
+
+    speaker_line = (
+        f"The speaker of the full text is {speaker}. Use that for pronouns like I/we.\n\n" if speaker else ""
+    )
+    resp = client.chat.completions.create(
+        model=settings.openai_model,
+        max_tokens=1200,
+        tools=[SELECTED_CLAIM_TOOL],
+        tool_choice={"type": "function", "function": {"name": "record_selected_claim"}},
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You decide whether a selected sentence is a claim worth fact-checking and return "
+                    "structured output via the record_selected_claim tool. Always call the tool exactly once.\n\n"
+                    + CLAIM_RULES
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"{speaker_line}"
+                    "Given the full political text and one user-selected sentence, decide if the selected "
+                    "sentence is a concrete factual claim that is both verifiable and materially relevant "
+                    "to the text's argument. If it is not, set is_claim=false and explain why in reason.\n\n"
+                    f"Full text:\n---\n{text}\n---\n\n"
+                    f"Selected sentence:\n---\n{selected}\n---"
+                ),
+            },
+        ],
+    )
+    msg = resp.choices[0].message
+    if not msg.tool_calls:
+        return {"is_claim": False, "reason": "Could not evaluate selected sentence.", "claim": None}
+    data = json.loads(msg.tool_calls[0].function.arguments)
+    if not data.get("is_claim"):
+        reason = (data.get("reason") or "").strip() or "Selected text is not a verifiable, relevant factual claim."
+        return {"is_claim": False, "reason": reason, "claim": None}
+
+    claim = data.get("claim") or {}
+    claim["text"] = (claim.get("text") or selected).strip()
+    claim["quote"] = selected
+    claim["explanation"] = (claim.get("explanation") or "").strip()
+    claim["context"] = (claim.get("context") or "").strip()
+    claim["related_entities"] = claim.get("related_entities") or []
+    claim["time_reference"] = (claim.get("time_reference") or "unspecified").strip()
+    claim["materiality"] = float(claim.get("materiality", 0.5))
+    claim["confidence"] = float(claim.get("confidence", 0.5))
+    _fact_check_claim(claim, speaker)
+    return {"is_claim": True, "reason": "", "claim": claim}
+
+
 SOCIAL_MEDIA_DOMAINS = [
     "facebook.com",
     "instagram.com",

@@ -18,6 +18,10 @@ class CleanTextResponse(BaseModel):
     without_hashes_and_asterisks: str
 
 
+class AnalyzeSelectedClaimRequest(BaseModel):
+    selected_text: str = Field(min_length=8, max_length=2_000)
+
+
 class Source(BaseModel):
     title: str
     url: str
@@ -55,3 +59,9 @@ class AnalysisOut(BaseModel):
     entities: list[Entity]
     entity_details: list[Entity] = []
     created_at: datetime
+
+
+class AnalyzeSelectedClaimResponse(BaseModel):
+    is_claim: bool
+    reason: str = ""
+    claim: Claim | None = None
