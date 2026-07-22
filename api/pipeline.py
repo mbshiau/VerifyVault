@@ -182,6 +182,10 @@ EXCLUDE a statement if it is only:
 When deciding whether to extract a statement, ask:
 **Would an independent fact-checking organization realistically write a fact check evaluating this specific statement?**
 
+Prefer claims that a professional fact-checking organization would realistically devote resources to verifying because 
+they materially affect public understanding of politics, policy, government, elections, economics, public safety,
+ or other matters of public interest. Do not extract incidental background facts whose truth is obvious, routine, or unlikely to be disputed.
+
 If the answer is no because the statement is too vague, aspirational, rhetorical, or subjective, do not extract it as a claim.
 ## Work top-down from key ideas, not bottom-up from every sentence
 
@@ -666,32 +670,6 @@ def enrich_entity_descriptions(text: str, entities: list[dict]) -> dict[str, str
     return {}
 
 
-def _summarize_text(content: str, title: str | None = None) -> str:
-    """Generate a 2-3 sentence neutral summary for a piece of content using the LLM."""
-    if not content:
-        return ""
-    prompt_title = f"Title: {title}\n\n" if title else ""
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a concise summarization assistant. Produce a neutral, factual 2-3 sentence summary of the provided article content. Avoid opinion, and focus on the main facts or claims presented.",
-        },
-        {
-            "role": "user",
-            "content": prompt_title + "Article excerpt:\n---\n" + (content[:3000] if len(content) > 3000 else content) + "\n---\n\nProvide a 2-3 sentence summary." ,
-        },
-    ]
-    try:
-        resp = client.chat.completions.create(model=settings.openai_model, messages=messages, max_tokens=256)
-        msg = resp.choices[0].message
-        # prefer the assistant content
-        if msg.content:
-            return msg.content.strip()
-        return ""
-    except Exception:
-        return ""
-
-
 def search_entity_sources(entity_name: str, entity_type: str, k: int = 3) -> list[dict]:
     """Search for news, speeches, and other sources related to a specific entity.
 
@@ -801,18 +779,14 @@ def search_entity_sources(entity_name: str, entity_type: str, k: int = 3) -> lis
             return {
                 "title": title,
                 "url": url,
+                # No LLM summarization call here - the UI already falls back to
+                # this snippet when summary is empty, so skip the extra round trip.
                 "snippet": _clean_snippet(content),
-                "summary": _summarize_text(content, title),
+                "summary": "",
                 "category": _categorize_result(title, url, content),
             }
 
-        top_results = results[:k]
-        if not top_results:
-            return []
-        # One LLM summarization call per source - run them concurrently rather
-        # than serially, since they're independent of each other.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(top_results)) as pool:
-            return list(pool.map(_enrich, top_results))
+        return [_enrich(x) for x in results[:k]]
     except Exception:
         return []
 
