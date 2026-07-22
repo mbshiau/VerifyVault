@@ -14,6 +14,19 @@ EXTRACT_SCHEMA = {
     "type": "object",
     "properties": {
         "summary": {"type": "string", "description": "2-4 sentence executive summary."},
+        "jurisdiction": {
+            "type": "string",
+            "description": (
+                "The single US state this text is primarily about (e.g. 'North Carolina'), "
+                "or 'federal' for national-level text, or 'unspecified' if it genuinely can't "
+                "be determined. The text itself may never name the state explicitly - infer it "
+                "from context using your own knowledge, e.g. who the speaker is and what office "
+                "they hold, named local officials, agency names that are specific to one state "
+                "(like a state's 'Board of Elections'), or place names mentioned in passing. "
+                "This is used to anchor fact-checking searches to the correct state, so guess "
+                "your best single answer rather than leaving it vague."
+            ),
+        },
         "topics": {
             "type": "array",
             "items": {"type": "string"},
@@ -130,7 +143,7 @@ EXTRACT_SCHEMA = {
             },
         },
     },
-    "required": ["summary", "topics", "key_ideas", "claims", "entities"],
+    "required": ["summary", "jurisdiction", "topics", "key_ideas", "claims", "entities"],
 }
 
 EXTRACT_TOOL = {
@@ -148,7 +161,9 @@ CLAIM_RULES = """\
 
 IINCLUDE a statement only if it asserts a concrete, specific factual claim that could reasonably be verified using evidence such as official records, legislation, government data, court documents, voting records, direct quotations, public statements, or reliable reporting.
 
-A claim should provide meaningful factual information that could plausibly be true or false—not merely describe a goal, intention, or political message.
+A claim is a concrete factual assertion that conveys specific information about the world and 
+whose truth or falsity would materially affect a reader's understanding of a public issue. Do not extract
+statements that merely describe generalized conditions, personal beliefs, political messaging, or rhetorical framing.
 
 Examples of claims to INCLUDE:
 - An event occurred or a condition exists (e.g. "we have had closures").
@@ -172,7 +187,7 @@ EXCLUDE a statement if it is only:
 - A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for...").
 - A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs").
 - A hypothetical or conditional example (e.g. "if you have access to a nurse practitioner...").
-- A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning").
+- A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...").
 - A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs").
 - A question, including rhetorical or interview questions.
 - A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college").
@@ -222,7 +237,9 @@ Not claims: "There's a lot of anxiety around AI" (subjective characterization); 
 def extract(text: str, speaker: str | None = None) -> dict:
     speaker_line = (
         f"This text was said or written by {speaker}. Use that when judging who entities/related_entities "
-        "refer to (e.g. resolve pronouns like 'I' or 'we' to this speaker) and when writing context/explanation.\n\n"
+        "refer to (e.g. resolve pronouns like 'I' or 'we' to this speaker) and when writing context/explanation. "
+        "Also use your own knowledge of who this person is (e.g. what office they hold and in which state) "
+        "when inferring the jurisdiction field below, even though the text itself may never name the state.\n\n"
         if speaker
         else ""
     )
@@ -242,6 +259,10 @@ def extract(text: str, speaker: str | None = None) -> dict:
                 f"{speaker_line}"
                 "Analyze the following political text. First identify its key ideas - the "
                 "actual points it's trying to make, not just topics it mentions in passing. "
+                "Also determine the jurisdiction (the US state, or 'federal', this text is "
+                "primarily about) using contextual clues and your own knowledge - named "
+                "officials' known roles, state-specific agency names, place names mentioned "
+                "in passing - even if no state is ever named explicitly in the text. "
                 "Then extract a concise summary, topics, and verifiable factual claims that "
                 "each directly support one of those key ideas, applying the claim rules from "
                 "the system prompt strictly. Ignore incidental context and claims that aren't "
@@ -288,8 +309,12 @@ SOCIAL_MEDIA_DOMAINS = [
     "reddit.com",
     "pinterest.com",
     "threads.net",
+    "threads.com",
     "youtube.com",
     "youtu.be",
+    "linkedin.com",
+    "bsky.app",
+    "truthsocial.com",
 ]
 
 # Domain suffixes/substrings that indicate a more authoritative, lower-bias source.
@@ -343,16 +368,13 @@ def _is_speaker_own_site(url: str, speaker_slugs: list[str]) -> bool:
     if not speaker_slugs:
         return False
     netloc = urlparse(url.lower()).netloc
-    if not any(slug in netloc for slug in speaker_slugs):
-        return False
-    # Only treat it as a self-published source if the domain also looks like an
-    # official/campaign site for a person, not e.g. a news article whose path
-    # happens to mention the speaker (path isn't checked - only the domain is).
-    return (
-        netloc.endswith((".gov", ".house.gov", ".senate.gov"))
-        or "forcongress" in netloc
-        or "campaign" in netloc
-    )
+    # A domain containing the speaker's own name is almost always their
+    # personal, campaign, or official site rather than independent
+    # journalism - real news outlets brand their domain after their own
+    # outlet, not the politician they're covering. Only the domain is
+    # checked (not the path), so a news article whose URL path happens to
+    # mention the speaker still passes through.
+    return any(slug in netloc for slug in speaker_slugs)
 
 
 _YEAR_RE = re.compile(r"\b(19[5-9]\d|20[0-4]\d)\b")
@@ -374,6 +396,49 @@ def _parse_content_year(content: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+_US_STATES = [
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+    "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+    "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine",
+    "maryland", "massachusetts", "michigan", "minnesota", "mississippi",
+    "missouri", "montana", "nebraska", "nevada", "new hampshire", "new jersey",
+    "new mexico", "new york", "north carolina", "north dakota", "ohio",
+    "oklahoma", "oregon", "pennsylvania", "rhode island", "south carolina",
+    "south dakota", "tennessee", "texas", "utah", "vermont", "virginia",
+    "washington", "west virginia", "wisconsin", "wyoming",
+]
+
+
+def _mentioned_state(*texts: str | None) -> str | None:
+    """Find the first US state name mentioned across the given texts, checked in order."""
+    for text in texts:
+        t = (text or "").lower()
+        for state in _US_STATES:
+            if re.search(rf"\b{re.escape(state)}\b", t):
+                return state
+    return None
+
+
+def _mentions_other_state(url: str, claim_state: str | None) -> bool:
+    """True if the source's domain names a different US state than the claim is about.
+
+    A claim about North Carolina's election rules citing Ohio's official
+    elections site isn't lower-relevance evidence - it's evidence for the
+    wrong state entirely, so this is a hard exclude rather than a scoring nudge.
+    """
+    if not claim_state:
+        return False
+    netloc = urlparse(url.lower()).netloc
+    claim_compact = claim_state.replace(" ", "")
+    for state in _US_STATES:
+        if state == claim_state:
+            continue
+        compact = state.replace(" ", "")
+        if compact in netloc and claim_compact not in netloc:
+            return True
+    return False
+
+
 def search_sources(query: str, k: int = 3, speaker: str | None = None, claim_year: int | None = None) -> list[dict]:
     if not settings.tavily_api_key:
         return []
@@ -383,7 +448,7 @@ def search_sources(query: str, k: int = 3, speaker: str | None = None, claim_yea
             "api_key": settings.tavily_api_key,
             "query": query,
             "max_results": k * 4,
-            "search_depth": "basic",
+            "search_depth": "advanced",
             "include_answer": False,
             "exclude_domains": SOCIAL_MEDIA_DOMAINS,
         },
@@ -828,10 +893,32 @@ def _is_date_like(name: str) -> bool:
     return False
 
 
-def _fact_check_claim(claim: dict, speaker: str | None) -> None:
+_STOPWORDS = frozenset({
+    "the", "and", "for", "are", "but", "not", "you", "all", "can", "her", "was",
+    "one", "our", "out", "get", "has", "him", "his", "how", "new", "now", "see",
+    "two", "way", "who", "did", "its", "let", "put", "say", "she", "too", "use",
+    "under", "over", "each", "with", "that", "this", "from", "have", "had",
+    "will", "would", "could", "should", "than", "then", "into", "onto", "upon",
+    "when", "where", "which", "while", "been", "being", "does", "doing", "such",
+    "some", "any", "more", "most", "other", "said", "says",
+})
+
+
+def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None = None) -> None:
     """Search for and rank sources for one claim, then score confidence. Mutates claim in place."""
     try:
         claim_query = claim.get("quote") or claim["text"]
+        # Search on the claim's distinctive keywords, not the raw sentence -
+        # rhetorical/opinion-laden phrasing ("is doubling down on his failed
+        # tariff strategy — and sticking Americans with the bill") tanks
+        # Tavily's relevance scoring (observed ~0.2 for the full sentence vs.
+        # ~0.85+ for the same claim reduced to content words), likely because
+        # a keyword search engine treats the extra rhetorical words as noise
+        # to match against rather than signal. Dedup while preserving order.
+        claim_tokens = list(dict.fromkeys(
+            t.lower() for t in re.findall(r"[A-Za-z]+", claim_query)
+            if len(t) > 2 and t.lower() not in _STOPWORDS
+        ))
         # Anchor the search on whoever/whatever this specific claim is about
         # (its related_entities), not unconditionally the speaker - a claim can
         # be about a third party entirely (e.g. an opponent), and always
@@ -839,21 +926,61 @@ def _fact_check_claim(claim: dict, speaker: str | None) -> None:
         # own coverage instead of the claim's actual subject.
         context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
         claim_year = _parse_claim_year(claim.get("time_reference"))
-        query = f"{claim_query} {' '.join(context_terms)}".strip()
+        # Prefer the document-level jurisdiction (inferred once at extraction
+        # time from the model's own knowledge, e.g. recognizing the speaker as
+        # a specific state's governor) since a claim's own text/context often
+        # never names the state at all. Fall back to regex-detecting a state
+        # name from this claim specifically only if that's unavailable.
+        jurisdiction_normalized = (jurisdiction or "").strip().lower()
+        claim_state = (
+            jurisdiction_normalized if jurisdiction_normalized in _US_STATES
+            else _mentioned_state(claim.get("context"), claim.get("text"), claim_query)
+        )
+        # Tokenize and dedup related_entities into the same flat word list as
+        # claim_tokens, rather than appending raw entity phrases - otherwise
+        # words already present in the quote (e.g. "Republican", "county
+        # board") get restated by an overlapping entity name and end up
+        # over-weighted, which made results noticeably less stable in testing.
+        entity_tokens = [
+            t.lower() for term in context_terms
+            for t in re.findall(r"[A-Za-z]+", term)
+            if len(t) > 2 and t.lower() not in _STOPWORDS
+        ]
+        query = " ".join(dict.fromkeys(claim_tokens + entity_tokens)).strip()
+        # Only inject the state into the query text for claims that are
+        # actually state/local in nature - a claim about federal policy (e.g.
+        # a governor commenting on the President's tariffs) has nothing to do
+        # with the speaker's own state, and appending it tanked relevance in
+        # testing (0.85 -> 0.02 for a Trump tariffs claim once "massachusetts"
+        # was added, since the query now searches for a combination that
+        # doesn't correspond to any real coverage). The wrong-state exclusion
+        # filter below still applies regardless, since it only removes sources
+        # that name a *different* state and is harmless for national topics.
+        is_national_topic = bool(
+            re.search(r"\b(president|federal|congress|senate|white house|supreme court)\b", claim_query, flags=re.IGNORECASE)
+            or any(re.search(r"\b(president|federal)\b", t, flags=re.IGNORECASE) for t in context_terms)
+        )
+        if claim_state and not is_national_topic:
+            query = f"{query} {claim_state}"
         if claim_year is not None:
             query = f"{query} {claim_year}"
         # If the claim looks like a schedule/event (contains a time or words like "markup"/"subcommittee"),
-        # bias the query toward calendars/events and government sites.
+        # bias the query toward calendars/events and government sites. Checked
+        # against the original sentence, not the keyword query, since digit-based
+        # time patterns like "3:00 pm" don't survive the [A-Za-z]+ tokenization above.
         is_schedule_like = bool(
-            re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)\b", query, flags=re.IGNORECASE)
-            or re.search(r"\b(markup|subcommittee|hearing|meeting|schedule|calendar)\b", query, flags=re.IGNORECASE)
+            re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)\b", claim_query, flags=re.IGNORECASE)
+            or re.search(r"\b(markup|subcommittee|hearing|meeting|schedule|calendar)\b", claim_query, flags=re.IGNORECASE)
         )
         if is_schedule_like:
             query = query + " calendar OR schedule OR event site:house.gov OR site:senate.gov"
         # Request a larger set and then re-rank to prioritize event/calendar pages
         sources = search_sources(query, k=6, speaker=speaker, claim_year=claim_year)
+        # Drop sources naming a different state than this claim is about - a
+        # same-shaped-but-wrong-state .gov page isn't weaker evidence, it's
+        # evidence for something else entirely.
+        sources = [s for s in sources if not _mentions_other_state(s.get("url", ""), claim_state)]
         # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
-        claim_tokens = [t.lower() for t in re.findall(r"[A-Za-z]+", claim_query) if len(t) > 2]
 
         def _source_score(s: dict) -> float:
             score = 0.0
@@ -869,7 +996,7 @@ def _fact_check_claim(claim: dict, speaker: str | None) -> None:
                 if numtok in title or numtok in snippet:
                     score += 0.8
             # small boost for containing any claim tokens
-            for ct in claim_tokens[:10]:
+            for ct in claim_tokens:
                 if ct in title or ct in snippet:
                     score += 0.1
             # domain trust nudges already applied, keep that as tiebreaker
@@ -935,8 +1062,9 @@ def run(text: str, speaker: str | None = None) -> dict:
     # output (claim text + related_entities, already set above), not on the
     # fact-checked claims, so there's no reason to make one wait on the other.
     entities = result["entities"]
+    jurisdiction = result.get("jurisdiction")
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as pool:
-        claim_futures = [pool.submit(_fact_check_claim, c, speaker) for c in result["claims"]]
+        claim_futures = [pool.submit(_fact_check_claim, c, speaker, jurisdiction) for c in result["claims"]]
         descriptions_future = pool.submit(enrich_entity_descriptions, text, entities)
 
         entity_descriptions = descriptions_future.result()
