@@ -510,6 +510,51 @@ def _parse_content_year(content: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def _subject_signals(context_terms: list[str] | None) -> tuple[list[str], list[str]]:
+    phrases = [re.sub(r"\s+", " ", (t or "").strip().lower()) for t in (context_terms or []) if (t or "").strip()]
+    phrases = _expand_subject_aliases(phrases)
+    phrases = [p for p in phrases if len(p) >= 4]
+    generic_tokens = {
+        "state", "states", "government", "administration", "department",
+        "committee", "official", "officials", "program", "policy", "law", "bill",
+    }
+    tokens: set[str] = set()
+    for p in phrases:
+        for tok in re.findall(r"[a-z]{4,}", p):
+            if tok not in generic_tokens:
+                tokens.add(tok)
+    return phrases, sorted(tokens)
+
+
+def _subject_match_strength(source: dict, subject_phrases: list[str], subject_tokens: list[str]) -> float:
+    if not subject_phrases and not subject_tokens:
+        return 0.0
+    haystack = f"{source.get('title', '')} {source.get('content', '')[:800]} {source.get('url', '')}".lower()
+    phrase_hits = sum(1 for p in subject_phrases if p and p in haystack)
+    token_hits = sum(1 for t in subject_tokens if t and t in haystack)
+    if phrase_hits == 0 and token_hits == 0:
+        return -1.0
+    return min(1.0, phrase_hits * 0.55 + token_hits * 0.15)
+
+
+_SUBJECT_ALIAS_RULES: list[tuple[re.Pattern[str], list[str]]] = [
+    (
+        re.compile(r"\bbig pharma\b|\bpharma\b", flags=re.IGNORECASE),
+        ["pharmaceutical manufacturers", "drug manufacturers", "pharmaceutical industry"],
+    ),
+]
+
+
+def _expand_subject_aliases(terms: list[str]) -> list[str]:
+    expanded = list(terms)
+    haystack = " ".join(terms)
+    for pattern, aliases in _SUBJECT_ALIAS_RULES:
+        if pattern.search(haystack):
+            expanded.extend(aliases)
+    # Deduplicate while preserving order.
+    return list(dict.fromkeys(re.sub(r"\s+", " ", t.strip().lower()) for t in expanded if t and t.strip()))
+
+
 _US_STATES = [
     "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
     "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
@@ -553,7 +598,13 @@ def _mentions_other_state(url: str, claim_state: str | None) -> bool:
     return False
 
 
-def search_sources(query: str, k: int = 3, speaker: str | None = None, claim_year: int | None = None) -> list[dict]:
+def search_sources(
+    query: str,
+    k: int = 3,
+    speaker: str | None = None,
+    claim_year: int | None = None,
+    context_terms: list[str] | None = None,
+) -> list[dict]:
     if not settings.tavily_api_key:
         return []
     r = httpx.post(
@@ -579,6 +630,7 @@ def search_sources(query: str, k: int = 3, speaker: str | None = None, claim_yea
     # enough to verify a claim, and the domain boost below would otherwise let a
     # trusted TLD rescue an essentially content-free result into the top ranks.
     results = [x for x in results if urlparse(x.get("url", "")).path not in ("", "/")]
+    subject_phrases, subject_tokens = _subject_signals(context_terms)
 
     def _score(x: dict) -> float:
         base = x.get("score", 0)
@@ -587,22 +639,32 @@ def search_sources(query: str, k: int = 3, speaker: str | None = None, claim_yea
         # near 0) can outrank genuinely relevant results purely by being on a
         # trusted domain, which defeats the "small nudge" intent.
         score = base + (_domain_score(x.get("url", "")) * 0.05 if base >= 0.15 else 0)
+        score += _subject_match_strength(x, subject_phrases, subject_tokens)
         if claim_year is not None:
             content_year = _parse_content_year(x.get("content", ""))
             # Only penalize when we're confident the article predates the claimed
             # event by more than a year - a 1yr buffer covers pre-announcement/
             # proposal coverage without letting genuinely stale articles rank high.
             if content_year is not None and content_year < claim_year - 1:
-                score -= 0.5
+                score -= min(1.2, 0.35 * (claim_year - content_year))
         return score
 
     # Primary signal is Tavily's own relevance score; the domain preference and
     # date penalty are only small nudges so a single mismatch can't flip the order
     # of two otherwise-similar results.
-    results.sort(key=_score, reverse=True)
+    scored_results = [(x, _score(x)) for x in results]
+    if subject_phrases or subject_tokens:
+        filtered = []
+        for x, s in scored_results:
+            subject_strength = _subject_match_strength(x, subject_phrases, subject_tokens)
+            if subject_strength <= -1.0 and x.get("score", 0) < 0.6:
+                continue
+            filtered.append((x, s))
+        scored_results = filtered or scored_results
+    scored_results.sort(key=lambda pair: pair[1], reverse=True)
     return [
         {"title": x.get("title", ""), "url": x.get("url", ""), "snippet": x.get("content", "")[:280]}
-        for x in results[:k]
+        for x, _ in scored_results[:k]
     ]
 
 
@@ -1039,6 +1101,7 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
         # appending the speaker biases search results toward the speaker's
         # own coverage instead of the claim's actual subject.
         context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
+        context_terms = _expand_subject_aliases([str(t) for t in context_terms if str(t).strip()])
         claim_year = _parse_claim_year(claim.get("time_reference"))
         # Prefer the document-level jurisdiction (inferred once at extraction
         # time from the model's own knowledge, e.g. recognizing the speaker as
@@ -1060,7 +1123,12 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
             for t in re.findall(r"[A-Za-z]+", term)
             if len(t) > 2 and t.lower() not in _STOPWORDS
         ]
-        query = " ".join(dict.fromkeys(claim_tokens + entity_tokens)).strip()
+        alias_tokens = [
+            t.lower() for term in _expand_subject_aliases([claim_query])
+            for t in re.findall(r"[A-Za-z]+", term)
+            if len(t) > 2 and t.lower() not in _STOPWORDS
+        ]
+        query = " ".join(dict.fromkeys(claim_tokens + entity_tokens + alias_tokens)).strip()
         # Only inject the state into the query text for claims that are
         # actually state/local in nature - a claim about federal policy (e.g.
         # a governor commenting on the President's tariffs) has nothing to do
@@ -1089,18 +1157,44 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
         if is_schedule_like:
             query = query + " calendar OR schedule OR event site:house.gov OR site:senate.gov"
         # Request a larger set and then re-rank to prioritize event/calendar pages
-        sources = search_sources(query, k=6, speaker=speaker, claim_year=claim_year)
+        sources = search_sources(
+            query,
+            k=6,
+            speaker=speaker,
+            claim_year=claim_year,
+            context_terms=context_terms,
+        )
+        # If strict subject/date filtering yields nothing, do one broader pass
+        # with alias-expanded terminology, then let downstream scoring/reranking
+        # keep only the strongest matches.
+        if not sources:
+            fallback_query = query
+            if claim_year is not None:
+                fallback_query = f"{fallback_query} {max(1950, claim_year - 1)} {claim_year} {claim_year + 1}"
+            sources = search_sources(
+                fallback_query,
+                k=8,
+                speaker=speaker,
+                claim_year=claim_year,
+                context_terms=_expand_subject_aliases(context_terms + [claim_query]),
+            )
         # Drop sources naming a different state than this claim is about - a
         # same-shaped-but-wrong-state .gov page isn't weaker evidence, it's
         # evidence for something else entirely.
         sources = [s for s in sources if not _mentions_other_state(s.get("url", ""), claim_state)]
         # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
+        subject_phrases, subject_tokens = _subject_signals(context_terms)
 
         def _source_score(s: dict) -> float:
             score = 0.0
             title = (s.get("title", "") or "").lower()
             snippet = (s.get("snippet", "") or "").lower()
             url = s.get("url", "") or ""
+            score += _subject_match_strength(
+                {"title": title, "content": snippet, "url": url},
+                subject_phrases,
+                subject_tokens,
+            )
             # boost if title or snippet contains event-related tokens from the claim
             for tok in ("markup", "subcommittee", "hearing", "committee", "calendar", "schedule", "markup"):
                 if tok in title or tok in snippet or tok in url.lower():
@@ -1113,6 +1207,10 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
             for ct in claim_tokens:
                 if ct in title or ct in snippet:
                     score += 0.1
+            if claim_year is not None:
+                content_year = _parse_content_year(s.get("snippet", "") or "")
+                if content_year is not None and content_year < claim_year - 1:
+                    score -= min(1.2, 0.35 * (claim_year - content_year))
             # domain trust nudges already applied, keep that as tiebreaker
             score += _domain_score(url) * 0.01
             return score
