@@ -159,40 +159,30 @@ EXTRACT_TOOL = {
 CLAIM_RULES = """\
 ## What counts as a verifiable factual claim
 
-IINCLUDE a statement only if it asserts a concrete, specific factual claim that could reasonably be verified using evidence such as official records, legislation, government data, court documents, voting records, direct quotations, public statements, or reliable reporting.
+Extract only concrete factual assertions that materially advance the speaker's argument and could reasonably be verified using official records, legislation, government data, court documents, voting records, public statements, financial disclosures, or reliable reporting.
 
-A claim is a concrete factual assertion that conveys specific information about the world and 
-whose truth or falsity would materially affect a reader's understanding of a public issue. Do not extract
-statements that merely describe generalized conditions, personal beliefs, political messaging, or rhetorical framing.
+A claim should communicate substantive information about politics, government, public policy, elections, economics, public safety, or other matters of public interest. Extract the claim even if it is disputed or likely false.
 
-Examples of claims to INCLUDE:
-- An event occurred or a condition exists (e.g. "we have had closures").
-- A person or organization performed a specific, identifiable action or made a specific decision (e.g. "Trump called Abbott", "Federal agents demanded records", "the Department of Education introduced a regulation").
-- A claim about a bill, law, regulation, or policy should only be extracted if the statement makes a factual assertion about its contents, status, sponsors, effects, passage, implementation, or other objectively verifiable characteristics. Merely mentioning or advocating for a bill does not constitute a claim.
-- A person holds or held a particular office or role.
-- A statistic, quantity, date, ranking, comparison, or measurable trend is stated as fact.
-- A claim about a person's voting record, public position, sponsorship of legislation, fundraising, finances, criminal proceedings, government actions, or official conduct.
-- A direct factual allegation about a public official or organization (e.g. "James Talarico opposes voter ID", "Trump received a $400 million jet").
+Include:
+- Events, actions, or decisions by identifiable people or organizations.
+- Claims about laws, policies, regulations, or government actions.
+- Statistics, quantities, dates, rankings, comparisons, trends, or measurable conditions.
+- Claims about voting records, finances, fundraising, criminal proceedings, official conduct, or public positions.
+- Direct factual allegations against a public official or organization.
 
-Extract the claim even if it is disputed, misleading, or likely false—the question is whether the factual assertion itself can be verified.
-
-If a sentence mixes factual content with opinion, extract only the factual portion.
-
-If a claim's own existence is uncertain (for example, a bill name may be garbled by transcription), still extract it but assign a lower confidence score.
-
-EXCLUDE a statement if it is only:
-- An opinion, insult, value judgment, or subjective characterization (e.g. "too radical", "devastating", "the most corrupt president").
-- Campaign messaging, slogans, or political branding (e.g. "Make America Great Again", "America is back").
-- A broad statement of effort, intent, mission, or policy objective rather than a discrete factual assertion (e.g. "working every day to lower costs", "fighting for free and fair elections", "protecting the American people", "securing the border", "delivering results").
-- A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for...").
-- A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs").
+EXCLUDE a statement if it is only: - An opinion, insult, value judgment, or subjective characterization (e.g. "too radical", "devastating", "the most corrupt president"). 
+- Campaign messaging, slogans, or political branding (e.g. "Make America Great Again", "America is back"). 
+- A broad statement of effort, intent, mission, or policy objective rather than a discrete factual assertion (e.g. "working every day to lower costs", "fighting for free and fair elections", "protecting the American people", "securing the border", "delivering results"). 
+- A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for..."). 
+- A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs"). 
 - A hypothetical or conditional example (e.g. "if you have access to a nurse practitioner...").
-- A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...").
-- A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs").
-- A question, including rhetorical or interview questions.
-- A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college").
-- A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI").
+- A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...", "we will..."). 
+- A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs"). 
+- A question, including rhetorical or interview questions. 
+- A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college"). 
+- A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI"). 
 - Speculative attribution of motive, intent, or causation without supporting evidence (e.g. "Trump is targeting me because I'm running for president", "some of that anxiety is due to AI").
+- **Introductions or identifying information whose only purpose is to identify a speaker or participant**, including names, titles, committee assignments, organizational affiliations, or statements like "I'm joined today by...", "Ranking Member Robert Garcia...", or "I'll now turn it over to...". Although technically verifiable, these are incidental background facts, not claims being advanced.
 
 When deciding whether to extract a statement, ask:
 **Would an independent fact-checking organization realistically write a fact check evaluating this specific statement?**
@@ -202,12 +192,12 @@ they materially affect public understanding of politics, policy, government, ele
  or other matters of public interest. Do not extract incidental background facts whose truth is obvious, routine, or unlikely to be disputed.
 
 If the answer is no because the statement is too vague, aspirational, rhetorical, or subjective, do not extract it as a claim.
-## Work top-down from key ideas, not bottom-up from every sentence
 
-Do not scan the text line by line looking for anything technically checkable. Instead:
-1. First decide the 3-6 key ideas - the actual points the text is trying to make.
-2. Then, for each key idea, find the claim(s) that most directly support or assert it.
-3. Skip statements that are merely incidental context, scene-setting, or asides - even if they contain a verifiable fact - if they don't support one of the key ideas. A passing mention that isn't part of what the speaker is actually trying to argue is not worth flagging.
+Work top-down rather than sentence-by-sentence.
+
+1. Identify the main points the speaker is trying to establish.
+2. Extract only the factual assertions that directly support those points.
+3. Ignore incidental details, background facts, and asides, even if technically verifiable.
 
 ## Materiality: score how much each claim matters to the argument
 
@@ -286,6 +276,7 @@ def extract(text: str, speaker: str | None = None) -> dict:
         resp = client.chat.completions.create(
             model=settings.openai_model,
             max_tokens=8192,
+            temperature=0,
             tools=[EXTRACT_TOOL],
             tool_choice={"type": "function", "function": {"name": "record_analysis"}},
             messages=messages,
