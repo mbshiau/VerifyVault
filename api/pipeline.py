@@ -50,6 +50,14 @@ def _current_context_note(speech_date: date | None = None) -> str:
 EXTRACT_SCHEMA = {
     "type": "object",
     "properties": {
+        "title": {
+            "type": "string",
+            "description": (
+                "A short (3-6 word) descriptive title for this text, in the style of "
+                "'Trump crypto speech', 'Harris town hall', 'Healthcare interview', "
+                "'Debate transcript' - naming the speaker/event and topic, not a full sentence."
+            ),
+        },
         "summary": {"type": "string", "description": "2-4 sentence executive summary."},
         "jurisdiction": {
             "type": "string",
@@ -186,7 +194,7 @@ EXTRACT_SCHEMA = {
             },
         },
     },
-    "required": ["summary", "jurisdiction", "topics", "key_ideas", "claims", "entities"],
+    "required": ["title", "summary", "jurisdiction", "topics", "key_ideas", "claims", "entities"],
 }
 
 EXTRACT_TOOL = {
@@ -299,7 +307,9 @@ def extract(text: str, speaker: str | None = None, speech_date: date | None = No
             "role": "user",
             "content": (
                 f"{speaker_line}"
-                "Analyze the following political text. First identify its key ideas - the "
+                "Analyze the following political text. First give it a short descriptive title "
+                "(3-6 words, naming the speaker/event and topic - e.g. 'Trump crypto speech'). "
+                "Then identify its key ideas - the "
                 "actual points it's trying to make, not just topics it mentions in passing. "
                 "Also determine the jurisdiction (the US state, or 'federal', this text is "
                 "primarily about) using contextual clues and your own knowledge - named "
@@ -659,7 +669,7 @@ def search_sources(
             "api_key": settings.tavily_api_key,
             "query": query,
             "max_results": k * 4,
-            "search_depth": "advanced",
+            "search_depth": "basic",
             "include_answer": False,
             "exclude_domains": SOCIAL_MEDIA_DOMAINS,
         },
@@ -709,7 +719,12 @@ def search_sources(
         scored_results = filtered or scored_results
     scored_results.sort(key=lambda pair: pair[1], reverse=True)
     return [
-        {"title": x.get("title", ""), "url": x.get("url", ""), "snippet": x.get("content", "")[:280]}
+        {
+            "title": x.get("title", ""),
+            "url": x.get("url", ""),
+            "snippet": x.get("content", "")[:280],
+            "score": x.get("score", 0.0),
+        }
         for x, _ in scored_results[:k]
     ]
 

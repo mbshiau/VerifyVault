@@ -4,6 +4,8 @@ import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Analysis, Claim, analyzeSelectedClaim, getAnalysis } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
+import { useAuth } from "@/lib/auth";
+import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
 import { ClaimHighlightedText } from "./ClaimHighlighter";
 import { ClaimsSidebar } from "./ClaimsSidebar";
 import { AnnotationLayer } from "./AnnotationLayer";
@@ -11,6 +13,7 @@ import { EntityDetails } from "./EntityDetails";
 
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -161,12 +164,14 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
             ← Back
           </Link>
           <header>
-            <h1 className="text-2xl font-semibold">Analysis</h1>
+            <h1 className="text-2xl font-semibold">{data.title}</h1>
             <p className="text-sm text-neutral-500">
               Status: {data.status}
               {data.speaker && <> · Speaker: {data.speaker}</>}
             </p>
           </header>
+
+          {!authLoading && !user && data.user_id === null && <SaveGuestAnalysisBanner analysisId={data.id} />}
 
           {processing ? (
             <p className="text-neutral-500">Running pipeline…</p>
