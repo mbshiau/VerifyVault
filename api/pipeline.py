@@ -75,7 +75,13 @@ EXTRACT_SCHEMA = {
             "description": (
                 "3-6 core ideas/main points the text is making - the things it is actually "
                 "trying to argue or communicate, not just topics it touches on in passing. "
-                "Identify these BEFORE selecting claims below; every claim must trace back to one of these."
+                "Identify these BEFORE selecting claims below; every claim must trace back to one of these. "
+                "Do NOT list the speaker's own identity, role, or personal/biographical background "
+                "(e.g. 'the speaker is the new senator from Michigan', 'the speaker has a military "
+                "background') as a key idea just because it's mentioned - self-introduction is not "
+                "an argument the text is making, it's scene-setting. Only list it as a key idea if the "
+                "speech is actually substantively about that person or fact (e.g. a profile piece, or "
+                "a speech centrally arguing the speaker's background qualifies them for a role)."
             ),
         },
         "claims": {
@@ -221,6 +227,7 @@ EXCLUDE a statement if it is only: - An opinion, insult, value judgment, or subj
 - A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI"). 
 - Speculative attribution of motive, intent, or causation without supporting evidence (e.g. "Trump is targeting me because I'm running for president", "some of that anxiety is due to AI").
 - **Introductions or identifying information whose only purpose is to identify a speaker or participant**, including names, titles, committee assignments, organizational affiliations, or statements like "I'm joined today by...", "Ranking Member Robert Garcia...", or "I'll now turn it over to...". Although technically verifiable, these are incidental background facts, not claims being advanced.
+- **Self-introduction or autobiographical scene-setting about the speaker's own identity, background, or personal history**, when it's establishing who they are or their personal credibility rather than materially supporting the argument that follows (e.g. "I'm the new senator from the great state of Michigan, where I grew up", "I was recruited by the CIA and did three tours in Iraq"). This applies even when the fact is dramatic, impressive, or technically checkable (military service, career history, hometown, biographical milestones) - the test is whether the rest of the speech's argument depends on it, not whether it's verifiable. Contrast with a role/constituency statement that the speaker then argues from (e.g. "I represent a rural committee outside of Chicago" immediately followed by claims about that district) - that one stays in because a later point hinges on it.
 
 When deciding whether to extract a statement, ask:
 **Would an independent fact-checking organization realistically write a fact check evaluating this specific statement?**

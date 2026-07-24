@@ -71,6 +71,7 @@ export function ClaimDetails({ claim }: { claim: Claim }) {
 
 export function ClaimsSidebar({
   claims,
+  order,
   activeIndex,
   onSelect,
   matchedIndexes,
@@ -78,6 +79,7 @@ export function ClaimsSidebar({
   userAddedCount = 0,
 }: {
   claims: Claim[];
+  order?: number[];
   activeIndex: number | null;
   onSelect: (index: number) => void;
   matchedIndexes: Set<number>;
@@ -88,11 +90,14 @@ export function ClaimsSidebar({
     return <p className="text-sm text-neutral-500">No claims detected.</p>;
   }
 
+  const displayOrder = order ?? claims.map((_, i) => i);
+
   return (
     <div className="space-y-2">
       <h2 className="text-lg font-semibold">Detected Claims</h2>
       <ul className="space-y-2">
-        {claims.map((claim, index) => {
+        {displayOrder.map((index) => {
+          const claim = claims[index];
           const isActive = activeIndex === index;
           const isUserAdded = index < userAddedCount;
           return (

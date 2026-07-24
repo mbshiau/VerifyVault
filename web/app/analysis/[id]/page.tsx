@@ -47,6 +47,10 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     [data, allClaims]
   );
   const matchedIndexes = useMemo(() => new Set(spans.map((s) => s.index)), [spans]);
+  const displayOrder = useMemo(
+    () => [...spans.map((s) => s.index), ...unmatched.map((u) => u.index)],
+    [spans, unmatched]
+  );
 
   function selectClaim(index: number, source: "text" | "sidebar") {
     setActiveIndex((prev) => {
@@ -234,6 +238,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     )}
                     <ClaimsSidebar
                       claims={allClaims}
+                      order={displayOrder}
                       activeIndex={activeIndex}
                       onSelect={(i) => selectClaim(i, "sidebar")}
                       matchedIndexes={matchedIndexes}

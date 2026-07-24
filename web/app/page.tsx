@@ -4,15 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAnalysis } from "@/lib/api";
 
-function todayIso(): string {
-  return new Date().toLocaleDateString("en-CA"); // yyyy-mm-dd in local time
-}
-
 export default function Home() {
   const router = useRouter();
   const [text, setText] = useState("");
   const [speaker, setSpeaker] = useState("");
-  const [speechDate, setSpeechDate] = useState(todayIso());
+  const [speechDate, setSpeechDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +43,7 @@ export default function Home() {
             type="date"
             value={speechDate}
             onChange={(e) => setSpeechDate(e.target.value)}
-            title="Date this was said or written — defaults to today, change it for older text"
+            title="Date this was said or written (optional) — leave blank to assume today, set it for older text"
             className="rounded-lg border border-neutral-300 bg-white p-3 text-sm focus:border-neutral-900 focus:outline-none"
           />
         </div>
