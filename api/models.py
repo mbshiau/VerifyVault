@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import Date, DateTime, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +14,7 @@ class Analysis(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     input_text: Mapped[str] = mapped_column(Text, nullable=False)
     speaker: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    speech_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     claims: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     topics: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)

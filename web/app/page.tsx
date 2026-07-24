@@ -4,10 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAnalysis } from "@/lib/api";
 
+function todayIso(): string {
+  return new Date().toLocaleDateString("en-CA"); // yyyy-mm-dd in local time
+}
+
 export default function Home() {
   const router = useRouter();
   const [text, setText] = useState("");
   const [speaker, setSpeaker] = useState("");
+  const [speechDate, setSpeechDate] = useState(todayIso());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +21,7 @@ export default function Home() {
     setError(null);
     setLoading(true);
     try {
-      const a = await createAnalysis(text, speaker.trim());
+      const a = await createAnalysis(text, speaker.trim(), speechDate || undefined);
       router.push(`/analysis/${a.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -31,12 +36,21 @@ export default function Home() {
         Paste political text to extract claims, entities, and sourced evidence.
       </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <input
-          value={speaker}
-          onChange={(e) => setSpeaker(e.target.value)}
-          placeholder="Speaker (optional) — e.g. Jane Smith, Senator"
-          className="w-full rounded-lg border border-neutral-300 bg-white p-3 text-sm focus:border-neutral-900 focus:outline-none"
-        />
+        <div className="flex gap-3">
+          <input
+            value={speaker}
+            onChange={(e) => setSpeaker(e.target.value)}
+            placeholder="Speaker (optional) — e.g. Jane Smith, Senator"
+            className="flex-1 rounded-lg border border-neutral-300 bg-white p-3 text-sm focus:border-neutral-900 focus:outline-none"
+          />
+          <input
+            type="date"
+            value={speechDate}
+            onChange={(e) => setSpeechDate(e.target.value)}
+            title="Date this was said or written — defaults to today, change it for older text"
+            className="rounded-lg border border-neutral-300 bg-white p-3 text-sm focus:border-neutral-900 focus:outline-none"
+          />
+        </div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

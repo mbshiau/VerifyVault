@@ -9,12 +9,14 @@ export function ClaimHighlightedText({
   activeIndex,
   onSelect,
   markRefs,
+  userAddedCount = 0,
 }: {
   text: string;
   spans: ClaimSpan[];
   activeIndex: number | null;
   onSelect: (index: number) => void;
   markRefs: MutableRefObject<Map<number, HTMLElement>>;
+  userAddedCount?: number;
 }) {
   const nodes: ReactNode[] = [];
   let cursor = 0;
@@ -22,6 +24,7 @@ export function ClaimHighlightedText({
   spans.forEach((span) => {
     if (span.start > cursor) nodes.push(text.slice(cursor, span.start));
     const isActive = activeIndex === span.index;
+    const isUserAdded = span.index < userAddedCount;
     nodes.push(
       <mark
         key={span.index}
@@ -38,9 +41,13 @@ export function ClaimHighlightedText({
           }
         }}
         className={`cursor-pointer rounded px-0.5 font-semibold underline decoration-2 underline-offset-2 transition-colors ${
-          isActive
-            ? "bg-yellow-400 decoration-yellow-700"
-            : "bg-yellow-200 decoration-yellow-500 hover:bg-yellow-300"
+          isUserAdded
+            ? isActive
+              ? "bg-purple-400 decoration-purple-700"
+              : "bg-purple-200 decoration-purple-500 hover:bg-purple-300"
+            : isActive
+              ? "bg-yellow-400 decoration-yellow-700"
+              : "bg-yellow-200 decoration-yellow-500 hover:bg-yellow-300"
         }`}
       >
         {text.slice(span.start, span.end)}

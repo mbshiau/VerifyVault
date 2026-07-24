@@ -75,12 +75,14 @@ export function ClaimsSidebar({
   onSelect,
   matchedIndexes,
   itemRefs,
+  userAddedCount = 0,
 }: {
   claims: Claim[];
   activeIndex: number | null;
   onSelect: (index: number) => void;
   matchedIndexes: Set<number>;
   itemRefs: MutableRefObject<Map<number, HTMLElement>>;
+  userAddedCount?: number;
 }) {
   if (claims.length === 0) {
     return <p className="text-sm text-neutral-500">No claims detected.</p>;
@@ -92,6 +94,7 @@ export function ClaimsSidebar({
       <ul className="space-y-2">
         {claims.map((claim, index) => {
           const isActive = activeIndex === index;
+          const isUserAdded = index < userAddedCount;
           return (
             <li
               key={index}
@@ -104,12 +107,12 @@ export function ClaimsSidebar({
                 type="button"
                 onClick={() => onSelect(index)}
                 className={`flex w-full items-start gap-2 p-3 text-left text-sm transition-colors ${
-                  isActive ? "bg-yellow-50" : "hover:bg-neutral-50"
+                  isActive ? (isUserAdded ? "bg-purple-50" : "bg-yellow-50") : "hover:bg-neutral-50"
                 }`}
               >
                 <span
                   className={`mt-1 h-2 w-2 flex-none rounded-full ${
-                    matchedIndexes.has(index) ? "bg-yellow-500" : "bg-neutral-300"
+                    matchedIndexes.has(index) ? (isUserAdded ? "bg-purple-500" : "bg-yellow-500") : "bg-neutral-300"
                   }`}
                   title={matchedIndexes.has(index) ? "Highlighted in text" : "Not matched to a specific sentence"}
                 />

@@ -205,6 +205,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                         activeIndex={activeIndex}
                         onSelect={(i) => selectClaim(i, "text")}
                         markRefs={markRefs}
+                        userAddedCount={selectedClaims.length}
                       />
                     </AnnotationLayer>
                   </div>
@@ -237,6 +238,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                       onSelect={(i) => selectClaim(i, "sidebar")}
                       matchedIndexes={matchedIndexes}
                       itemRefs={sidebarRefs}
+                      userAddedCount={selectedClaims.length}
                     />
                     {unmatched.length > 0 && (
                       <p className="mt-2 text-xs text-neutral-400">

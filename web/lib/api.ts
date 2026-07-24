@@ -23,6 +23,7 @@ export type Analysis = {
   status: string;
   text: string;
   speaker?: string | null;
+  speech_date?: string | null;
   summary: string;
   claims: Claim[];
   topics: string[];
@@ -37,11 +38,11 @@ export type SelectedClaimAnalysis = {
   claim: Claim | null;
 };
 
-export async function createAnalysis(text: string, speaker?: string): Promise<Analysis> {
+export async function createAnalysis(text: string, speaker?: string, speechDate?: string): Promise<Analysis> {
   const r = await fetch(`${API_URL}/analyze`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text, speaker: speaker || undefined }),
+    body: JSON.stringify({ text, speaker: speaker || undefined, speech_date: speechDate || undefined }),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();

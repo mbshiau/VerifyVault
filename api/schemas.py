@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class AnalyzeRequest(BaseModel):
     text: str = Field(min_length=20, max_length=100_000)
     speaker: str | None = Field(default=None, max_length=200)
+    speech_date: date | None = None
 
 
 class CleanTextRequest(BaseModel):
@@ -53,6 +54,7 @@ class AnalysisOut(BaseModel):
     status: str
     text: str
     speaker: str | None = None
+    speech_date: date | None = None
     summary: str
     claims: list[Claim]
     topics: list[str]

@@ -37,7 +37,7 @@ def _run_pipeline(analysis_id: UUID, text: str) -> None:
         if row is None:
             return
         try:
-            result = pipeline.run(text, row.speaker)
+            result = pipeline.run(text, row.speaker, row.speech_date)
             row.summary = result.get("summary", "")
             row.topics = result.get("topics", [])
             row.claims = result.get("claims", [])
@@ -72,7 +72,12 @@ def create_analysis(
     tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    row = Analysis(input_text=payload.text, speaker=payload.speaker, status="processing")
+    row = Analysis(
+        input_text=payload.text,
+        speaker=payload.speaker,
+        speech_date=payload.speech_date,
+        status="processing",
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -82,6 +87,7 @@ def create_analysis(
         status=row.status,
         text=row.input_text,
         speaker=row.speaker,
+        speech_date=row.speech_date,
         summary="",
         claims=[],
         topics=[],
@@ -101,6 +107,7 @@ def get_analysis(analysis_id: UUID, db: Session = Depends(get_db)):
         status=row.status,
         text=row.input_text,
         speaker=row.speaker,
+        speech_date=row.speech_date,
         summary=row.summary,
         claims=row.claims,
         topics=row.topics,
@@ -118,7 +125,7 @@ def analyze_selected_claim(analysis_id: UUID, payload: AnalyzeSelectedClaimReque
     if row.status != "complete":
         raise HTTPException(409, "analysis is not complete yet")
     try:
-        result = pipeline.analyze_selected_claim(row.input_text, payload.selected_text, row.speaker)
+        result = pipeline.analyze_selected_claim(row.input_text, payload.selected_text, row.speaker, row.speech_date)
     except Exception:
         raise HTTPException(500, "failed to analyze selected claim")
     return AnalyzeSelectedClaimResponse(

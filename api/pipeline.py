@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 import re
+from datetime import date
 from urllib.parse import urlparse
 
 import httpx
@@ -9,6 +10,42 @@ from openai import OpenAI
 from config import settings
 
 client = OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url or None)
+
+
+_PRESIDENT_TRANSITION = date(2025, 1, 20)
+
+
+def _current_context_note(speech_date: date | None = None) -> str:
+    # The model's training data skews toward whichever administration was in
+    # office as of its cutoff, so left to its own defaults it resolves an
+    # unqualified "the president"/"this administration" to that stale
+    # president rather than whoever was actually in office when the text was
+    # said. `speech_date` anchors that resolution to when the text actually
+    # happened rather than today, since a user analyzing an older speech
+    # pasted today would otherwise get it resolved to today's president.
+    as_of = speech_date or date.today()
+    if as_of >= _PRESIDENT_TRANSITION:
+        president_line = (
+            f"As of {as_of.isoformat()}, the President of the United States is Donald Trump, "
+            "who began his second term on January 20, 2025."
+        )
+    else:
+        president_line = (
+            f"As of {as_of.isoformat()}, the President of the United States was Joe Biden "
+            "(in office 2021-2025) - Donald Trump's second term had not yet begun "
+            "(it started January 20, 2025)."
+        )
+    date_line = f"This text was said or written on {as_of.isoformat()}."
+    if speech_date is not None and speech_date != date.today():
+        date_line += f" (Today's actual date is {date.today().isoformat()}.)"
+    return (
+        f"{date_line} {president_line} When the text refers to \"the president\", \"this "
+        "administration\", or similar without naming anyone, resolve it to whoever was actually "
+        "in office on the date above given context (recent events, the speaker's own role, what's "
+        "being discussed) - do not default to a different president just because they are more "
+        "familiar from training data. For dates further in the past, use your own general "
+        "historical knowledge of who held office then.\n\n"
+    )
 
 EXTRACT_SCHEMA = {
     "type": "object",
@@ -174,7 +211,8 @@ EXCLUDE a statement if it is only: - An opinion, insult, value judgment, or subj
 - Campaign messaging, slogans, or political branding (e.g. "Make America Great Again", "America is back"). 
 - A broad statement of effort, intent, mission, or policy objective rather than a discrete factual assertion (e.g. "working every day to lower costs", "fighting for free and fair elections", "protecting the American people", "securing the border", "delivering results"). 
 - A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for..."). 
-- A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs"). 
+- A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs").
+- **A characterization of a bill or policy's political viability or chances of passage** (e.g. "this has no path in the Senate", "is unlikely to pass", "faces long odds", "will never get a vote"). EXCLUDE this even when it's phrased as reporting what a person or group "has made clear," "has said," or "has signaled." This pattern will look like it satisfies the "public positions" INCLUDE rule above, but it does not: the claim-worthy content is the prediction itself (will this pass or not), and that prediction doesn't become a checkable fact just because it's attributed to someone's statement. The "public positions" rule is for claims like *what office someone holds* or *how someone voted*, not for a group's forecast about a bill's future prospects.
 - A hypothetical or conditional example (e.g. "if you have access to a nurse practitioner...").
 - A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...", "we will..."). 
 - A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs"). 
@@ -221,10 +259,16 @@ Segment: "There's a lot of anxiety around AI. People are graduating from high sc
 Claims to extract: "If you look at the unemployment rate for young workers, whether college graduate or not, it is rising" (concrete, checkable labor-market statistic).
 
 Not claims: "There's a lot of anxiety around AI" (subjective characterization); "People are graduating from high school and graduating from college" (generic truism, not meaningfully checkable); "There's a lot of angst out there about the job market" (subjective sentiment); "Some of that angst has to do with the advent of this new technology..." (speculative attribution of cause); "...technology that may displace a lot of entry-level jobs" (hedged prediction); "To what extent do you think AI-driven job replacement is similar or different from automation?" (question).
+
+Segment: "Today I voted to ban Members of Congress from selling and trading individual stocks. But House Republicans took a broadly nonpartisan issue and inserted politics—provisions from the Save America Act. I've voted against these voter ID provisions repeatedly and Senate Republicans have made clear this has no path in the Senate. But with how hard it is to get Congress to govern itself, this is the best chance we have to enact a stock ban."
+
+Claims to extract: "Today I voted to ban Members of Congress from selling and trading individual stocks" (a specific voting-record action); "House Republicans inserted provisions from the Save America Act into the bill" (factual portion of a mixed opinion/fact statement about the bill's actual contents); "I've voted against these voter ID provisions repeatedly" (voting-record claim).
+
+Not claims: "Senate Republicans have made clear this has no path in the Senate" (a prediction about the bill's political prospects, not made checkable just because it's attributed to what Senate Republicans "have made clear"); "this is the best chance we have to enact a stock ban" (opinion/political judgment).
 """
 
 
-def extract(text: str, speaker: str | None = None) -> dict:
+def extract(text: str, speaker: str | None = None, speech_date: date | None = None) -> dict:
     speaker_line = (
         f"This text was said or written by {speaker}. Use that when judging who entities/related_entities "
         "refer to (e.g. resolve pronouns like 'I' or 'we' to this speaker) and when writing context/explanation. "
@@ -237,6 +281,7 @@ def extract(text: str, speaker: str | None = None) -> dict:
         {
             "role": "system",
             "content": (
+                _current_context_note(speech_date) +
                 "You analyze political text and return structured output via the "
                 "record_analysis tool. Always call the tool exactly once. You are especially "
                 "careful to distinguish objectively verifiable factual claims from opinions, "
@@ -343,7 +388,9 @@ SELECTED_CLAIM_TOOL = {
 }
 
 
-def analyze_selected_claim(text: str, selected_text: str, speaker: str | None = None) -> dict:
+def analyze_selected_claim(
+    text: str, selected_text: str, speaker: str | None = None, speech_date: date | None = None
+) -> dict:
     selected = (selected_text or "").strip()
     if len(selected) < 8:
         return {"is_claim": False, "reason": "Selection is too short to evaluate.", "claim": None}
@@ -366,6 +413,7 @@ def analyze_selected_claim(text: str, selected_text: str, speaker: str | None = 
             {
                 "role": "system",
                 "content": (
+                    _current_context_note(speech_date) +
                     "You decide whether a selected sentence is a claim worth fact-checking and return "
                     "structured output via the record_selected_claim tool. Always call the tool exactly once.\n\n"
                     + CLAIM_RULES
@@ -1071,6 +1119,31 @@ _STOPWORDS = frozenset({
 })
 
 
+_FACT_CHECK_SIGNAL_RE = re.compile(
+    r"\b(fact.?check|rated|verdict|misleading|false|inaccurate|pants on fire|debunk)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _is_bare_transcript_reprint(quote: str, title: str, snippet: str) -> bool:
+    """True if a source is essentially just reproducing the claim's own quote
+    verbatim (e.g. a full transcript/archive of the very speech being
+    fact-checked, or a live-blog that echoes it) rather than independent
+    reporting or analysis - a page just restating what the speaker said isn't
+    corroborating evidence, even when it isn't the speaker's own site.
+    """
+    quote_words = set(re.findall(r"[a-z]{3,}", (quote or "").lower()))
+    if len(quote_words) < 6:
+        return False
+    haystack_words = set(re.findall(r"[a-z]{3,}", f"{title} {snippet}".lower()))
+    overlap = len(quote_words & haystack_words) / len(quote_words)
+    if overlap < 0.8:
+        return False
+    # Still keep it if the page shows signs of actually fact-checking the
+    # claim (a verdict, "rated false", etc.) rather than just archiving it.
+    return not _FACT_CHECK_SIGNAL_RE.search(f"{title} {snippet}")
+
+
 def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None = None) -> None:
     """Search for and rank sources for one claim, then score confidence. Mutates claim in place."""
     try:
@@ -1173,6 +1246,14 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
         # same-shaped-but-wrong-state .gov page isn't weaker evidence, it's
         # evidence for something else entirely.
         sources = [s for s in sources if not _mentions_other_state(s.get("url", ""), claim_state)]
+        # Drop sources that are just reprinting the speech itself (full
+        # transcripts, live blogs quoting the line) - these aren't independent
+        # verification even when hosted on a third-party domain, since they
+        # contain nothing but the speaker's own words back at them.
+        sources = [
+            s for s in sources
+            if not _is_bare_transcript_reprint(claim_query, s.get("title", ""), s.get("snippet", ""))
+        ]
         # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
         subject_phrases, subject_tokens = _subject_signals(context_terms)
 
@@ -1242,8 +1323,8 @@ def _build_entity_detail(
     }
 
 
-def run(text: str, speaker: str | None = None) -> dict:
-    result = extract(text, speaker)
+def run(text: str, speaker: str | None = None, speech_date: date | None = None) -> dict:
+    result = extract(text, speaker, speech_date)
     # Order by materiality (highest first) but don't cap the count - longer
     # speeches legitimately surface more claims, and a fixed cap would drop
     # real ones instead of just deprioritizing low-stakes ones in the UI.
