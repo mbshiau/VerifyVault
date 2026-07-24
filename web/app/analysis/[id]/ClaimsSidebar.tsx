@@ -76,7 +76,6 @@ export function ClaimsSidebar({
   onSelect,
   matchedIndexes,
   itemRefs,
-  userAddedCount = 0,
 }: {
   claims: Claim[];
   order?: number[];
@@ -84,7 +83,6 @@ export function ClaimsSidebar({
   onSelect: (index: number) => void;
   matchedIndexes: Set<number>;
   itemRefs: MutableRefObject<Map<number, HTMLElement>>;
-  userAddedCount?: number;
 }) {
   if (claims.length === 0) {
     return <p className="text-sm text-neutral-500">No claims detected.</p>;
@@ -99,7 +97,9 @@ export function ClaimsSidebar({
         {displayOrder.map((index) => {
           const claim = claims[index];
           const isActive = activeIndex === index;
-          const isUserAdded = index < userAddedCount;
+          // Derived from the persisted claim, not session state - keeps a
+          // user-selected claim purple across reloads/navigation.
+          const isUserAdded = claim.source === "user_selected";
           return (
             <li
               key={index}

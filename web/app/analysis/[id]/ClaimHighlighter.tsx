@@ -9,14 +9,12 @@ export function ClaimHighlightedText({
   activeIndex,
   onSelect,
   markRefs,
-  userAddedCount = 0,
 }: {
   text: string;
   spans: ClaimSpan[];
   activeIndex: number | null;
   onSelect: (index: number) => void;
   markRefs: MutableRefObject<Map<number, HTMLElement>>;
-  userAddedCount?: number;
 }) {
   const nodes: ReactNode[] = [];
   let cursor = 0;
@@ -24,7 +22,10 @@ export function ClaimHighlightedText({
   spans.forEach((span) => {
     if (span.start > cursor) nodes.push(text.slice(cursor, span.start));
     const isActive = activeIndex === span.index;
-    const isUserAdded = span.index < userAddedCount;
+    // Derived from the persisted claim, not session state - this is what
+    // keeps a user-selected claim purple even after navigating away and
+    // reloading, once it's a page reload rather than in-memory state.
+    const isUserAdded = span.claim.source === "user_selected";
     nodes.push(
       <mark
         key={span.index}

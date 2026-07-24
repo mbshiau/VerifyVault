@@ -19,6 +19,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [annotationMode, setAnnotationMode] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [selectionRect, setSelectionRect] = useState<{ top: number; left: number } | null>(null);
   const [selectedClaims, setSelectedClaims] = useState<Claim[]>([]);
   const [selectedClaimError, setSelectedClaimError] = useState<string | null>(null);
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
@@ -76,7 +77,20 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     const next = selection.toString().replace(/\s+/g, " ").trim();
     if (!next) return;
     if (next === selectedText) return;
+
+    const rect = range.getBoundingClientRect();
+    const panelRect = textPanelRef.current.getBoundingClientRect();
+    setSelectionRect({
+      top: rect.top - panelRect.top + textPanelRef.current.scrollTop,
+      left: rect.left - panelRect.left + rect.width / 2,
+    });
     setSelectedText(next);
+    setSelectedClaimError(null);
+  }
+
+  function dismissSelection() {
+    setSelectedText("");
+    setSelectionRect(null);
     setSelectedClaimError(null);
   }
 
@@ -103,6 +117,11 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           setSelectedClaims(nextSelected);
           setActiveIndex(nextSelected.length - 1);
         }
+        // Added successfully - the popover has done its job; the claim now
+        // shows via its own highlight, so close it rather than leaving it
+        // floating over the just-processed sentence.
+        setSelectedText("");
+        setSelectionRect(null);
       } else {
         setSelectedClaimError(result.reason || "Selected text is not a verifiable, relevant claim.");
       }
@@ -206,7 +225,11 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     sentence, or a claim on the right, to see its sources. You can also select your own sentence and
                     analyze it.
                   </p>
-                  <div className="md:max-h-[75vh] md:overflow-y-auto md:pr-4" ref={textPanelRef} onMouseUp={handleSelectionMouseUp}>
+                  <div
+                    className="relative md:max-h-[75vh] md:overflow-y-auto md:pr-4"
+                    ref={textPanelRef}
+                    onMouseUp={handleSelectionMouseUp}
+                  >
                     <AnnotationLayer active={annotationMode}>
                       <ClaimHighlightedText
                         text={data.text}
@@ -214,33 +237,45 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                         activeIndex={activeIndex}
                         onSelect={(i) => selectClaim(i, "text")}
                         markRefs={markRefs}
-                        userAddedCount={selectedClaims.length}
                       />
                     </AnnotationLayer>
+
+                    {selectedText && selectionRect && (
+                      <div
+                        className="absolute z-20 w-72 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg border border-neutral-300 bg-white p-3 shadow-lg"
+                        style={{ top: selectionRect.top, left: selectionRect.left }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                            Selected Sentence
+                          </p>
+                          <button
+                            type="button"
+                            onClick={dismissSelection}
+                            aria-label="Dismiss"
+                            className="-mr-1 -mt-1 rounded p-1 text-neutral-400 hover:text-neutral-700"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <p className="mt-1 text-sm leading-snug text-neutral-800">{selectedText}</p>
+                        <button
+                          type="button"
+                          onClick={handleAnalyzeSelection}
+                          disabled={analyzingSelection}
+                          className="mt-2 rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {analyzingSelection ? "Analyzing..." : "Analyze Selected Sentence"}
+                        </button>
+                        {selectedClaimError && <p className="mt-1.5 text-xs text-red-600">{selectedClaimError}</p>}
+                        <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-neutral-300 bg-white" />
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="md:sticky md:top-8 md:max-h-[75vh] md:overflow-y-auto md:pr-1">
                   <AnnotationLayer active={annotationMode}>
-                    {selectedText && (
-                      <section className="mb-3 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-                        <div className="space-y-2 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                            Selected Sentence
-                          </p>
-                          <p className="text-sm leading-snug text-neutral-800">{selectedText}</p>
-                          <button
-                            type="button"
-                            onClick={handleAnalyzeSelection}
-                            disabled={analyzingSelection}
-                            className="rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {analyzingSelection ? "Analyzing..." : "Analyze Selected Sentence"}
-                          </button>
-                          {selectedClaimError && <p className="text-xs text-red-600">{selectedClaimError}</p>}
-                        </div>
-                      </section>
-                    )}
                     <ClaimsSidebar
                       claims={allClaims}
                       order={displayOrder}
@@ -248,7 +283,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                       onSelect={(i) => selectClaim(i, "sidebar")}
                       matchedIndexes={matchedIndexes}
                       itemRefs={sidebarRefs}
-                      userAddedCount={selectedClaims.length}
                     />
                     {unmatched.length > 0 && (
                       <p className="mt-2 text-xs text-neutral-400">
