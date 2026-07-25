@@ -2,7 +2,7 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Analysis, Claim, analyzeSelectedClaim, deleteClaim, findMoreSources, getAnalysis } from "@/lib/api";
+import { Analysis, Claim, Source, analyzeSelectedClaim, getAnalysis } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
 import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
@@ -14,8 +14,6 @@ import { EntityDetails } from "./EntityDetails";
 type SnippetTarget = {
   source: Source;
   claimText: string;
-  claimIndex: number;
-  sourceIndex: number;
 };
 
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,12 +31,8 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [selectedClaimError, setSelectedClaimError] = useState<string | null>(null);
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
   const [duplicateClaimIndex, setDuplicateClaimIndex] = useState<number | null>(null);
-  const [claimPendingDelete, setClaimPendingDelete] = useState<Claim | null>(null);
-  const [deletingClaim, setDeletingClaim] = useState(false);
-  const [deleteClaimError, setDeleteClaimError] = useState<string | null>(null);
-  const [findingMoreSourcesFor, setFindingMoreSourcesFor] = useState<string | null>(null);
-  const [moreSourcesErrorFor, setMoreSourcesErrorFor] = useState<string | null>(null);
-  const [moreSourcesError, setMoreSourcesError] = useState<string | null>(null);
+  const [copiedClaimIndex, setCopiedClaimIndex] = useState<number | null>(null);
+  const [snippetTarget, setSnippetTarget] = useState<SnippetTarget | null>(null);
   const markRefs = useRef<Map<number, HTMLElement>>(new Map());
   const textPanelRef = useRef<HTMLDivElement>(null);
 
@@ -61,15 +55,11 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   }, [id]);
 
   const allClaims = useMemo(() => (data ? [...selectedClaims, ...data.claims] : selectedClaims), [data, selectedClaims]);
-  const { spans, unmatched } = useMemo(
+  const { spans } = useMemo(
     () => (data ? matchClaimsToText(data.text, allClaims) : { spans: [], unmatched: [] }),
     [data, allClaims]
   );
-  const matchedIndexes = useMemo(() => new Set(spans.map((s) => s.index)), [spans]);
-  const displayOrder = useMemo(
-    () => [...spans.map((s) => s.index), ...unmatched.map((u) => u.index)],
-    [spans, unmatched]
-  );
+
   const selectedClaim = allClaims[selectedClaimIndex] ?? null;
 
   useEffect(() => {
@@ -84,14 +74,13 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     }
   }, [allClaims.length, selectedClaimIndex]);
 
-  function selectClaim(index: number, source: "text" | "sidebar") {
+  function selectClaim(index: number) {
     setSelectedClaimIndex(index);
     setExpandedClaimIndex(index);
     setActiveIndex((prev) => {
       const next = prev === index ? null : index;
       if (next !== null) {
-        const target = source === "sidebar" ? markRefs.current.get(index) : markRefs.current.get(index);
-        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        markRefs.current.get(index)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       return next;
     });
@@ -102,11 +91,10 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
     const range = selection.getRangeAt(0);
-    const container = range.commonAncestorContainer;
-    if (!textPanelRef.current.contains(container)) return;
+    if (!textPanelRef.current.contains(range.commonAncestorContainer)) return;
+
     const next = selection.toString().replace(/\s+/g, " ").trim();
-    if (!next) return;
-    if (next === selectedText) return;
+    if (!next || next === selectedText) return;
 
     for (const [index, el] of markRefs.current.entries()) {
       if (range.intersectsNode(el)) {
@@ -168,46 +156,12 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     }
   }
 
-  function requestDeleteClaim(claim: Claim) {
-    setDeleteClaimError(null);
-    setClaimPendingDelete(claim);
-  }
-
-  async function confirmDeleteClaim() {
-    if (!data || !claimPendingDelete?.id || deletingClaim) return;
-    setDeletingClaim(true);
-    setDeleteClaimError(null);
-    try {
-      await deleteClaim(data.id, claimPendingDelete.id);
-      const deletedId = claimPendingDelete.id;
-      setSelectedClaims((prev) => prev.filter((c) => c.id !== deletedId));
-      setData((prev) => (prev ? { ...prev, claims: prev.claims.filter((c) => c.id !== deletedId) } : prev));
-      setActiveIndex(null);
-      setClaimPendingDelete(null);
-    } catch (e) {
-      setDeleteClaimError(e instanceof Error ? e.message : "Failed to delete claim.");
-    } finally {
-      setDeletingClaim(false);
-    }
-  }
-
-  async function handleFindMoreSources(claim: Claim) {
-    if (!data || !claim.id || findingMoreSourcesFor) return;
-    setFindingMoreSourcesFor(claim.id);
-    setMoreSourcesErrorFor(null);
-    setMoreSourcesError(null);
-    try {
-      const updated = await findMoreSources(data.id, claim.id);
-      setSelectedClaims((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-      setData((prev) =>
-        prev ? { ...prev, claims: prev.claims.map((c) => (c.id === updated.id ? updated : c)) } : prev
-      );
-    } catch (e) {
-      setMoreSourcesErrorFor(claim.id);
-      setMoreSourcesError(e instanceof Error ? e.message : "Failed to find more sources.");
-    } finally {
-      setFindingMoreSourcesFor(null);
-    }
+  async function copyClaim(claim: Claim, index: number) {
+    await navigator.clipboard.writeText(claim.text);
+    setCopiedClaimIndex(index);
+    window.setTimeout(() => {
+      setCopiedClaimIndex((current) => (current === index ? null : current));
+    }, 1200);
   }
 
   if (error)
@@ -219,6 +173,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         <p className="text-red-600">{error}</p>
       </main>
     );
+
   if (!data)
     return (
       <main className="space-y-4 p-8">
@@ -288,7 +243,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                   text={data.text}
                   spans={spans}
                   activeIndex={activeIndex}
-                  onSelect={(i) => selectClaim(i, "text")}
+                  onSelect={selectClaim}
                   markRefs={markRefs}
                 />
 
@@ -348,19 +303,13 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <button
-                            type="button"
-                            onClick={() => selectClaim(index, "sidebar")}
-                            className="flex-1 text-left"
-                          >
+                          <button type="button" onClick={() => selectClaim(index)} className="flex-1 text-left">
                             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
                               <span className={`h-2 w-2 rounded-sm ${isUserAdded ? "bg-sky-500" : "bg-amber-500"}`} />
                               Claim {index + 1}
                             </div>
                             <p className="mt-2 text-sm leading-7 text-slate-900">{claim.text}</p>
-                            <p className="mt-3 text-xs text-slate-500">
-                              Confidence {(claim.confidence * 100).toFixed(0)}%
-                            </p>
+                            <p className="mt-3 text-xs text-slate-500">Confidence {(claim.confidence * 100).toFixed(0)}%</p>
                           </button>
 
                           <div className="flex flex-col gap-2">
@@ -384,29 +333,14 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                           </div>
                         </div>
 
-                <div className="md:sticky md:top-8 md:max-h-[75vh] md:overflow-y-auto md:pr-1">
-                  <AnnotationLayer active={annotationMode}>
-                    <ClaimsSidebar
-                      claims={allClaims}
-                      order={displayOrder}
-                      activeIndex={activeIndex}
-                      onSelect={(i) => selectClaim(i, "sidebar")}
-                      matchedIndexes={matchedIndexes}
-                      itemRefs={sidebarRefs}
-                      onDelete={requestDeleteClaim}
-                      onFindMoreSources={handleFindMoreSources}
-                      findingMoreSourcesFor={findingMoreSourcesFor}
-                      moreSourcesErrorFor={moreSourcesErrorFor}
-                      moreSourcesError={moreSourcesError}
-                    />
-                    {unmatched.length > 0 && (
-                      <p className="mt-2 text-xs text-neutral-400">
-                        Claims with a gray dot couldn&apos;t be matched to one specific sentence.
-                      </p>
-                    )}
-                  </AnnotationLayer>
-                </div>
-              </section>
+                        {isExpanded && (
+                          <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+                            {claim.explanation && (
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Explanation</p>
+                                <p className="mt-2 text-sm leading-7 text-slate-700">{claim.explanation}</p>
+                              </div>
+                            )}
 
                             {claim.context && (
                               <div>
@@ -468,14 +402,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                                         <div className="mt-3 flex flex-wrap items-center gap-2">
                                           <button
                                             type="button"
-                                            onClick={() =>
-                                              setSnippetTarget({
-                                                source,
-                                                claimText: claim.text,
-                                                claimIndex: index,
-                                                sourceIndex,
-                                              })
-                                            }
+                                            onClick={() => setSnippetTarget({ source, claimText: claim.text })}
                                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                                           >
                                             View source snippet
@@ -517,42 +444,17 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         cancelLabel="Dismiss"
         onCancel={() => setDuplicateClaimIndex(null)}
         onConfirm={() => {
-          if (duplicateClaimIndex !== null) selectClaim(duplicateClaimIndex, "text");
+          if (duplicateClaimIndex !== null) selectClaim(duplicateClaimIndex);
           setDuplicateClaimIndex(null);
         }}
       />
 
-      <ConfirmDialog
-        open={claimPendingDelete !== null}
-        title="Delete this claim?"
-        description={
-          claimPendingDelete
-            ? `"${claimPendingDelete.text}" and its sources will be permanently removed from this analysis.${
-                deleteClaimError ? ` ${deleteClaimError}` : ""
-              }`
-            : undefined
-        }
-        confirmLabel={deletingClaim ? "Deleting..." : "Delete"}
-        cancelLabel="Cancel"
-        danger
-        onCancel={() => {
-          if (deletingClaim) return;
-          setClaimPendingDelete(null);
-          setDeleteClaimError(null);
-        }}
-        onConfirm={confirmDeleteClaim}
-      />
+      {snippetTarget && <SourceSnippetModal target={snippetTarget} onClose={() => setSnippetTarget(null)} />}
     </main>
   );
 }
 
-function SourceSnippetModal({
-  target,
-  onClose,
-}: {
-  target: SnippetTarget;
-  onClose: () => void;
-}) {
+function SourceSnippetModal({ target, onClose }: { target: SnippetTarget; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4" onClick={onClose}>
       <div
