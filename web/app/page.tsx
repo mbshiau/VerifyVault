@@ -8,7 +8,7 @@ const VIDEO_EXTENSIONS = [".mp4", ".mov", ".m4v", ".webm"];
 const VIDEO_ACCEPT = VIDEO_EXTENSIONS.join(",");
 const MAX_VIDEO_MB = 500;
 const SUPPORTED_VIDEO_URL_RE =
-  /^https?:\/\/(www\.|m\.|mobile\.)?(youtube\.com|youtu\.be|twitter\.com|x\.com|instagram\.com|instagr\.am)\//i;
+  /^https?:\/\/(www\.|m\.|mobile\.)?(youtube\.com|youtu\.be|twitter\.com|x\.com)\//i;
 
 type Mode = "text" | "video";
 
@@ -82,13 +82,7 @@ export default function Home() {
           router.push(`/analysis/${id}`);
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Failed";
-          if (videoUrl.toLowerCase().includes('instagram')) {
-            setError(
-              "Instagram content often requires a logged-in session. Provide a public Instagram reel accessible without login or use YouTube/X."
-            );
-          } else {
-            setError(msg);
-          }
+          setError(msg);
           setLoading(false);
         }
         return;
@@ -272,13 +266,13 @@ export default function Home() {
                   </div>
                 ) : (
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-black">YouTube, X/Twitter, or Instagram video URL</span>
+                    <span className="text-sm font-medium text-black">YouTube or X/Twitter video URL</span>
                     <p className="text-xs text-stone-400">Audio is transcribed, video played from original source</p>
                     <input
                       type="url"
                       value={videoUrl}
                       onChange={(e) => setVideoUrl(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status/... or https://www.instagram.com/reel/..."
+                      placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status..."
                       className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
                     />
                   </label>
@@ -288,13 +282,13 @@ export default function Home() {
 
             {mode === "url" && (
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-black">YouTube, X/Twitter, or Instagram video URL</span>
+                <span className="text-sm font-medium text-black">YouTube or X/Twitter video URL</span>
                 <p className="text-xs text-stone-400">Audio is transcribed, video played from original source</p>
                 <input
                   type="url"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status/... or https://www.instagram.com/reel/..."
+                  placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status..."
                   className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
                 />
               </label>
@@ -335,7 +329,7 @@ export default function Home() {
               <p>• Press releases, newsletters, and policy statements</p>
               <p>• Social posts or short public remarks</p>
               <p>• Video of speeches, interviews, debates, or press conferences</p>
-              <p>• YouTube, X/Twitter, or Instagram links to any of the above</p>
+              <p>• YouTube or X/Twitter links to any of the above</p>
             </div>
           </section>
 
