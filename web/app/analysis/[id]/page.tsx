@@ -14,8 +14,6 @@ import { EntityDetails } from "./EntityDetails";
 type SnippetTarget = {
   source: Source;
   claimText: string;
-  claimIndex: number;
-  sourceIndex: number;
 };
 
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
@@ -63,7 +61,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   }, [id]);
 
   const allClaims = useMemo(() => (data ? [...selectedClaims, ...data.claims] : selectedClaims), [data, selectedClaims]);
-  const { spans, unmatched } = useMemo(
+  const { spans } = useMemo(
     () => (data ? matchClaimsToText(data.text, allClaims) : { spans: [], unmatched: [] }),
     [data, allClaims]
   );
@@ -80,14 +78,13 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     }
   }, [allClaims.length, selectedClaimIndex]);
 
-  function selectClaim(index: number, source: "text" | "sidebar") {
+  function selectClaim(index: number) {
     setSelectedClaimIndex(index);
     setExpandedClaimIndex(index);
     setActiveIndex((prev) => {
       const next = prev === index ? null : index;
       if (next !== null) {
-        const target = source === "sidebar" ? markRefs.current.get(index) : markRefs.current.get(index);
-        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        markRefs.current.get(index)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       return next;
     });
@@ -98,11 +95,10 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
     const range = selection.getRangeAt(0);
-    const container = range.commonAncestorContainer;
-    if (!textPanelRef.current.contains(container)) return;
+    if (!textPanelRef.current.contains(range.commonAncestorContainer)) return;
+
     const next = selection.toString().replace(/\s+/g, " ").trim();
-    if (!next) return;
-    if (next === selectedText) return;
+    if (!next || next === selectedText) return;
 
     for (const [index, el] of markRefs.current.entries()) {
       if (range.intersectsNode(el)) {
@@ -222,6 +218,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         <p className="text-red-600">{error}</p>
       </main>
     );
+
   if (!data)
     return (
       <main className="space-y-4 p-8">
@@ -291,7 +288,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                   text={data.text}
                   spans={spans}
                   activeIndex={activeIndex}
-                  onSelect={(i) => selectClaim(i, "text")}
+                  onSelect={selectClaim}
                   markRefs={markRefs}
                 />
 
@@ -351,19 +348,13 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <button
-                            type="button"
-                            onClick={() => selectClaim(index, "sidebar")}
-                            className="flex-1 text-left"
-                          >
+                          <button type="button" onClick={() => selectClaim(index)} className="flex-1 text-left">
                             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
                               <span className={`h-2 w-2 rounded-sm ${isUserAdded ? "bg-sky-500" : "bg-amber-500"}`} />
                               Claim {index + 1}
                             </div>
                             <p className="mt-2 text-sm leading-7 text-slate-900">{claim.text}</p>
-                            <p className="mt-3 text-xs text-slate-500">
-                              Confidence {(claim.confidence * 100).toFixed(0)}%
-                            </p>
+                            <p className="mt-3 text-xs text-slate-500">Confidence {(claim.confidence * 100).toFixed(0)}%</p>
                           </button>
 
                           <div className="flex flex-col gap-2">
@@ -465,14 +456,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                                         <div className="mt-3 flex flex-wrap items-center gap-2">
                                           <button
                                             type="button"
-                                            onClick={() =>
-                                              setSnippetTarget({
-                                                source,
-                                                claimText: claim.text,
-                                                claimIndex: index,
-                                                sourceIndex,
-                                              })
-                                            }
+                                            onClick={() => setSnippetTarget({ source, claimText: claim.text })}
                                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                                           >
                                             View source snippet
@@ -530,7 +514,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         cancelLabel="Dismiss"
         onCancel={() => setDuplicateClaimIndex(null)}
         onConfirm={() => {
-          if (duplicateClaimIndex !== null) selectClaim(duplicateClaimIndex, "text");
+          if (duplicateClaimIndex !== null) selectClaim(duplicateClaimIndex);
           setDuplicateClaimIndex(null);
         }}
       />
@@ -566,13 +550,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   );
 }
 
-function SourceSnippetModal({
-  target,
-  onClose,
-}: {
-  target: SnippetTarget;
-  onClose: () => void;
-}) {
+function SourceSnippetModal({ target, onClose }: { target: SnippetTarget; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4" onClick={onClose}>
       <div
