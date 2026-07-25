@@ -114,6 +114,129 @@ def test_video_no_speech_detected(client, monkeypatch, patch_pipeline):
     assert status_r.json()["status"] == "failed: no_speech_detected"
 
 
+@pytest.fixture
+def patch_url_media(monkeypatch):
+    """Generic fixture for both YouTube and Twitter/X url-sourced flows -
+    media.py has no platform-specific functions left, only fetch_url_video_info
+    and download_remote_audio, shared by every URL source.
+    """
+    from video import media
+
+    def _apply(info: dict):
+        monkeypatch.setattr(media, "fetch_url_video_info", lambda url: info)
+
+        def fake_download_remote_audio(url, out_path):
+            with open(out_path, "wb") as f:
+                f.write(b"fake-audio")
+
+        monkeypatch.setattr(media, "download_remote_audio", fake_download_remote_audio)
+        monkeypatch.setattr(
+            media, "transcribe", lambda audio_path: {"text": FULL_TRANSCRIPT_TEXT, "segments": FAKE_SEGMENTS}
+        )
+
+    return _apply
+
+
+def test_from_url_rejects_unsupported_host(client):
+    r = client.post("/api/video/from-url", json={"url": "https://example.com/some-video"})
+    assert r.status_code == 400
+
+
+def test_from_url_rejects_too_long_duration(client, monkeypatch):
+    from config import settings
+    from video import media
+
+    monkeypatch.setattr(settings, "video_max_duration_seconds", 60)
+    monkeypatch.setattr(
+        media,
+        "fetch_url_video_info",
+        lambda url: {"duration_seconds": 999, "title": "Long video", "uploader": "x", "external_video_id": "abc123"},
+    )
+    r = client.post("/api/video/from-url", json={"url": "https://www.youtube.com/watch?v=abc123"})
+    assert r.status_code == 400
+
+
+def test_youtube_happy_path(client, patch_url_media, patch_pipeline):
+    patch_url_media(
+        {
+            "duration_seconds": 5.0,
+            "title": "Test YouTube Speech",
+            "uploader": "Test Channel",
+            "external_video_id": "dQw4w9WgXcQ",
+        }
+    )
+    r = client.post(
+        "/api/video/from-url",
+        json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "speaker": "Jane Smith"},
+    )
+    assert r.status_code == 200
+    video_id = r.json()["id"]
+
+    # TestClient runs BackgroundTasks synchronously in-process, so processing
+    # has already finished by the time the response above returned.
+    status_r = client.get(f"/api/video/{video_id}/status")
+    assert status_r.json()["status"] == "complete"
+
+    get_r = client.get(f"/api/video/{video_id}")
+    assert get_r.status_code == 200
+    body = get_r.json()
+    assert body["source_type"] == "video"
+    # The initial fetched title is just a placeholder while processing -
+    # pipeline.run()'s own generated title wins once complete, exactly like
+    # the upload flow.
+    assert body["title"] == "Test Analysis Title"
+    assert body["video"]["source"] == "youtube"
+    assert body["video"]["external_video_id"] == "dQw4w9WgXcQ"
+    assert len(body["claims"]) == 1
+    assert body["claims"][0]["start_ms"] == 0
+    assert body["claims"][0]["end_ms"] == 3000
+
+    # No file is ever downloaded/stored for a url-sourced analysis.
+    file_r = client.get(f"/api/video/{video_id}/file")
+    assert file_r.status_code == 404
+
+
+def test_twitter_happy_path(client, patch_url_media, patch_pipeline):
+    patch_url_media(
+        {
+            "duration_seconds": 3.17,
+            "title": "Captain America - a tweet",
+            "uploader": "Captain America",
+            # display_id (the tweet/status id), not the underlying media
+            # asset's `id` - see fetch_url_video_info's docstring.
+            "external_video_id": "719944021058060289",
+        }
+    )
+    r = client.post(
+        "/api/video/from-url",
+        json={"url": "https://twitter.com/captainamerica/status/719944021058060289"},
+    )
+    assert r.status_code == 200
+    video_id = r.json()["id"]
+
+    status_r = client.get(f"/api/video/{video_id}/status")
+    assert status_r.json()["status"] == "complete"
+
+    get_r = client.get(f"/api/video/{video_id}")
+    body = get_r.json()
+    assert body["video"]["source"] == "twitter"
+    assert body["video"]["external_video_id"] == "719944021058060289"
+    assert len(body["claims"]) == 1
+
+    file_r = client.get(f"/api/video/{video_id}/file")
+    assert file_r.status_code == 404
+
+
+def test_from_url_accepts_x_dot_com_host(client, patch_url_media, patch_pipeline):
+    patch_url_media(
+        {"duration_seconds": 3.0, "title": "x.com tweet", "uploader": "x", "external_video_id": "111"}
+    )
+    r = client.post("/api/video/from-url", json={"url": "https://x.com/someone/status/111"})
+    assert r.status_code == 200
+    body = client.get(f"/api/video/{r.json()['id']}").json()
+    assert body["video"]["source"] == "twitter"
+
+
 def test_video_cross_user_access_is_404(client, patch_media, patch_pipeline):
     owner_token = _register_and_login(client, "video-owner2@example.com")
     other_token = _register_and_login(client, "video-other2@example.com")

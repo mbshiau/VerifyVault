@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import yt_dlp
 from groq import Groq
 
 from config import settings
@@ -58,6 +59,62 @@ def extract_audio(video_path: str, out_path: str) -> None:
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
         raise MediaError("Failed to extract audio from the video.") from e
+
+
+def fetch_url_video_info(url: str) -> dict:
+    """Probes a video URL's metadata only (no download) so duration/existence
+    can be validated before committing to an actual download. Generic over
+    every site yt-dlp supports (YouTube, Twitter/X, ...) - nothing here is
+    platform-specific.
+    """
+    ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except yt_dlp.utils.DownloadError as e:
+        raise MediaError(
+            "Could not read this video - it may be private, deleted, age-restricted, or region-locked."
+        ) from e
+    if info is None:
+        raise MediaError("Could not read this video.")
+    if info.get("_type") == "playlist" or info.get("entries") is not None:
+        raise MediaError("Please provide a link to a single video, not a playlist.")
+    return {
+        "duration_seconds": float(info.get("duration") or 0.0),
+        "title": info.get("title") or "",
+        "uploader": info.get("uploader") or "",
+        # display_id is the user-facing id (e.g. a tweet/status id for
+        # Twitter) - id is often an internal media-asset id instead (observed
+        # concretely on Twitter, where `id` is the underlying video's id, not
+        # the tweet's). For YouTube the two are the same, so this fallback
+        # order works correctly for both without a platform-specific branch.
+        "external_video_id": info.get("display_id") or info.get("id") or "",
+    }
+
+
+def download_remote_audio(url: str, out_path: str) -> None:
+    """Downloads only the best available audio stream (no video) to a temp
+    file, then normalizes it through the exact same extract_audio() every
+    uploaded video's audio goes through - so transcribe() downstream never
+    needs to know whether the source was an upload or a remote URL.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        raw_template = str(Path(tmp_dir) / "audio.%(ext)s")
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "format": "bestaudio/best",
+            "outtmpl": raw_template,
+        }
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except yt_dlp.utils.DownloadError as e:
+            raise MediaError("Failed to download audio from this video.") from e
+        downloaded = next(Path(tmp_dir).glob("audio.*"), None)
+        if downloaded is None:
+            raise MediaError("Failed to download audio from this video.")
+        extract_audio(str(downloaded), out_path)
 
 
 def _split_audio(audio_path: str, chunk_dir: str) -> list[str]:

@@ -1260,6 +1260,36 @@ def _is_bare_transcript_reprint(quote: str, title: str, snippet: str) -> bool:
     return not _FACT_CHECK_SIGNAL_RE.search(f"{title} {snippet}")
 
 
+def _search_query_basis(claim: dict) -> str:
+    """Picks the base string the source-search query is built from.
+
+    Normally the verbatim quote is the best basis - it's the exact sentence
+    the claim is grounded in. But a run-on sentence covering several distinct
+    allegations (e.g. "X is anti-abortion, an election denier, and a
+    pedophile protector") gets split into multiple separate claims that all
+    share that SAME multi-topic quote. Searching each split claim on the full
+    quote crams every other claim's keywords into the query and drowns out
+    the one this specific claim is actually about - concretely observed
+    turning a claim about an abortion record into a near-random match because
+    "election denier"/"Epstein"/"pedophile" rode along in the same query.
+    When a claim's own text is substantially shorter than its quote, that's
+    the signal the quote covers more ground than this one claim does, so the
+    claim's own (LLM-synthesized, single-topic) text is the more targeted
+    search basis. For the common case - one quote sentence, one claim - text
+    and quote are comparable in length and quote (the exact original wording)
+    remains preferred, unchanged from before.
+    """
+    text = (claim.get("text") or "").strip()
+    quote = (claim.get("quote") or "").strip()
+    if not quote:
+        return text
+    if not text:
+        return quote
+    if len(text) < len(quote) * 0.6:
+        return text
+    return quote
+
+
 def _rank_claim_sources(
     claim: dict,
     speaker: str | None,
@@ -1274,7 +1304,7 @@ def _rank_claim_sources(
     Raises on search failure; callers decide how to handle that.
     """
     exclude_urls = exclude_urls or set()
-    claim_query = claim.get("quote") or claim["text"]
+    claim_query = _search_query_basis(claim)
     # Search on the claim's distinctive keywords, not the raw sentence -
     # rhetorical/opinion-laden phrasing ("is doubling down on his failed
     # tariff strategy — and sticking Americans with the bill") tanks
