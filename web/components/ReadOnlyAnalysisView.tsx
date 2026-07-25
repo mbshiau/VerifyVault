@@ -112,6 +112,11 @@ export function ReadOnlyAnalysisView({
                 activeSegmentIndex={activeSegmentIndex}
                 onSeek={(ms) => videoPlayerRef.current?.seekTo(ms)}
                 segmentRefs={segmentRefs}
+                text={data.text}
+                spans={spans}
+                activeIndex={activeIndex}
+                onSelect={selectClaim}
+                markRefs={markRefs}
               />
             ) : (
               <ClaimHighlightedText

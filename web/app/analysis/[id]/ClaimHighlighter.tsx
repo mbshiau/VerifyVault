@@ -9,23 +9,51 @@ export function ClaimHighlightedText({
   activeIndex,
   onSelect,
   markRefs,
+  onWordClick,
 }: {
   text: string;
   spans: ClaimSpan[];
   activeIndex: number | null;
   onSelect: (index: number) => void;
   markRefs: MutableRefObject<Map<number, HTMLElement>>;
+  onWordClick?: (globalIndex: number) => void;
 }) {
   const nodes: ReactNode[] = [];
   let cursor = 0;
 
+  function renderTokens(sliceText: string, baseIndex: number) {
+    const out: ReactNode[] = [];
+    const re = /(\S+|\s+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(sliceText))) {
+      const token = m[0];
+      const startInSlice = m.index;
+      const globalIndex = baseIndex + startInSlice;
+      if (/^\s+$/.test(token)) {
+        out.push(token);
+      } else {
+        out.push(
+          <span
+            key={`${baseIndex}-${startInSlice}`}
+            className="inline-block cursor-pointer"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.stopPropagation(); onWordClick && onWordClick(globalIndex); }}
+            role={onWordClick ? "button" : undefined}
+            tabIndex={onWordClick ? 0 : undefined}
+          >
+            {token}
+          </span>
+        );
+      }
+    }
+    return out;
+  }
+
   spans.forEach((span) => {
-    if (span.start > cursor) nodes.push(text.slice(cursor, span.start));
+    if (span.start > cursor) nodes.push(...renderTokens(text.slice(cursor, span.start), cursor));
     const isActive = activeIndex === span.index;
-    // Derived from the persisted claim, not session state - this is what
-    // keeps a user-selected claim purple even after navigating away and
-    // reloading, once it's a page reload rather than in-memory state.
     const isUserAdded = span.claim.source === "user_selected";
+    const markedTokens = renderTokens(text.slice(span.start, span.end), span.start);
     nodes.push(
       <mark
         key={span.index}
@@ -41,7 +69,7 @@ export function ClaimHighlightedText({
             onSelect(span.index);
           }
         }}
-        className={`cursor-pointer rounded px-0.5 font-semibold underline decoration-2 underline-offset-2 transition-colors ${
+        className={`cursor-pointer rounded px-0.5 font-semibold transition-colors ${
           isUserAdded
             ? isActive
               ? "bg-purple-400 decoration-purple-700"
@@ -51,13 +79,13 @@ export function ClaimHighlightedText({
               : "bg-yellow-200 decoration-yellow-500 hover:bg-yellow-300"
         }`}
       >
-        {text.slice(span.start, span.end)}
+        {markedTokens}
       </mark>
     );
     cursor = span.end;
   });
 
-  if (cursor < text.length) nodes.push(text.slice(cursor));
+  if (cursor < text.length) nodes.push(...renderTokens(text.slice(cursor), cursor));
 
   return <p className="whitespace-pre-wrap leading-relaxed">{nodes}</p>;
 }

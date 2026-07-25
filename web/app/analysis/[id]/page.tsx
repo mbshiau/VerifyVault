@@ -54,6 +54,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [moreSourcesError, setMoreSourcesError] = useState<string | null>(null);
   const markRefs = useRef<Map<number, HTMLElement>>(new Map());
   const textPanelRef = useRef<HTMLDivElement>(null);
+  const selectionPopupRef = useRef<HTMLDivElement | null>(null);
   const videoPlayerRef = useRef<VideoPlayerHandle>(null);
   const segmentRefs = useRef<Map<number, HTMLElement>>(new Map());
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
@@ -146,15 +147,46 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     // If so, position it below the selection instead
     const isBelow = relativeTop < 200;
     
-    setSelectionRect({
-      top: isBelow 
-        ? rect.bottom - panelRect.top + textPanelRef.current.scrollTop
-        : relativeTop,
-      left: rect.left - panelRect.left + rect.width / 2,
-      isBelow,
-    });
+    const initialTop = isBelow
+      ? rect.bottom - panelRect.top + textPanelRef.current.scrollTop
+      : relativeTop;
+    const initialLeft = rect.left - panelRect.left + rect.width / 2;
+
+    setSelectionRect({ top: initialTop, left: initialLeft, isBelow });
     setSelectedText(next);
     setSelectedClaimError(null);
+
+    // Ensure popup stays within visible panel bounds for videos and long transcripts
+    requestAnimationFrame(() => {
+      const panel = textPanelRef.current;
+      const popup = selectionPopupRef.current;
+      if (!panel || !popup) return;
+
+      const popupHeight = popup.offsetHeight;
+      const popupWidth = popup.offsetWidth;
+      const panelHeight = panel.clientHeight;
+      const scrollTop = panel.scrollTop;
+
+      let top = initialTop;
+      const minTop = scrollTop + 8;
+      const maxTop = scrollTop + panelHeight - popupHeight - 8;
+      if (maxTop < minTop) {
+        // popup taller than panel; pin to scrollTop
+        top = minTop;
+      } else {
+        top = Math.min(Math.max(top, minTop), maxTop);
+      }
+
+      let left = initialLeft;
+      const minLeft = popupWidth / 2 + 8;
+      const maxLeft = panel.clientWidth - popupWidth / 2 - 8;
+      left = Math.min(Math.max(left, minLeft), maxLeft);
+
+      // update only if adjusted
+      if (top !== initialTop || left !== initialLeft) {
+        setSelectionRect((prev) => (prev ? { ...prev, top, left } : prev));
+      }
+    });
   }
 
   function dismissSelection() {
@@ -283,6 +315,9 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           <div>
             <p className="text-sm uppercase tracking-[0.25em] text-slate-500">Analysis</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{data.title}</h1>
+            {data.summary && (
+              <p className="mt-2 text-sm text-slate-700">{data.summary}</p>
+            )}
             <p className="mt-2 text-sm text-slate-500">
               Status: {data.status}
               {data.speaker && <> · Speaker: {data.speaker}</>}
@@ -362,8 +397,8 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                 <h2 className="text-lg font-semibold text-slate-900">{isVideo ? "Transcript" : "Original text"}</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {isVideo
-                    ? "Click a timestamp to jump to that point in the video, or select transcript text to analyze a claim."
-                    : "Click a highlighted claim to inspect it, or select new text to analyze it."}
+                    ? "Click any word in the transcript to jump to that point in the video, or select (highlight) transcript text to analyze a claim. You can also click a highlighted claim to inspect it."
+                    : "Click a highlighted claim to inspect it, or select (highlight) text to analyze a claim."}
                 </p>
               </div>
               <div
@@ -377,6 +412,12 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     activeSegmentIndex={activeSegmentIndex}
                     onSeek={(ms) => videoPlayerRef.current?.seekTo(ms)}
                     segmentRefs={segmentRefs}
+                    text={data.text}
+                    spans={spans}
+                    activeIndex={activeIndex}
+                    onSelect={selectClaim}
+                    markRefs={markRefs}
+                    summary={data.summary}
                   />
                 ) : (
                   <ClaimHighlightedText
@@ -390,6 +431,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
                 {selectedText && selectionRect && (
                   <div
+                    ref={selectionPopupRef}
                     className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80 ${
                       selectionRect.isBelow ? "translate-y-[8px]" : "-translate-y-[calc(100%+8px)]"
                     }`}
