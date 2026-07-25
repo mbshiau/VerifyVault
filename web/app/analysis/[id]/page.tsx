@@ -21,6 +21,7 @@ import { AnnotationLayer } from "./AnnotationLayer";
 import { EntityDetails } from "./EntityDetails";
 import { VideoPlayer, VideoPlayerHandle } from "./VideoPlayer";
 import { YouTubePlayer } from "./YouTubePlayer";
+import { TweetEmbed } from "./TweetEmbed";
 import { TranscriptView } from "./TranscriptView";
 import { VideoProcessingStepper } from "./VideoProcessingStepper";
 
@@ -306,8 +307,10 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         <AnnotationLayer active={annotationMode}>
           {isVideo && (
             <div className="mt-8">
-              {data.video?.source === "youtube" && data.video.youtube_video_id ? (
-                <YouTubePlayer ref={videoPlayerRef} videoId={data.video.youtube_video_id} />
+              {data.video?.source === "youtube" && data.video.external_video_id ? (
+                <YouTubePlayer ref={videoPlayerRef} videoId={data.video.external_video_id} />
+              ) : data.video?.source === "twitter" && data.video.external_video_id ? (
+                <TweetEmbed ref={videoPlayerRef} tweetId={data.video.external_video_id} />
               ) : (
                 <VideoPlayer ref={videoPlayerRef} src={getVideoFileUrl(data.id)} />
               )}

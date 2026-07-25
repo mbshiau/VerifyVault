@@ -96,7 +96,7 @@ def create_video_from_url(
 ):
     analysis_id = uuid.uuid4()
     try:
-        row = service.create_youtube_analysis(
+        row = service.create_url_analysis(
             db,
             analysis_id=analysis_id,
             url=payload.url.strip(),

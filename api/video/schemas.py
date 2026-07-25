@@ -27,7 +27,7 @@ class VideoOut(BaseModel):
     filename: str
     duration_seconds: float | None = None
     source: str = "upload"
-    youtube_video_id: str | None = None
+    external_video_id: str | None = None
 
     @classmethod
     def from_orm_video(cls, video: Video) -> "VideoOut":
@@ -35,7 +35,7 @@ class VideoOut(BaseModel):
             filename=video.filename,
             duration_seconds=video.duration_seconds,
             source=video.source,
-            youtube_video_id=video.youtube_video_id,
+            external_video_id=video.external_video_id,
         )
 
 

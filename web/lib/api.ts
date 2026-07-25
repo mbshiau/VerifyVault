@@ -33,8 +33,8 @@ export type Entity = { name: string; type: string };
 export type VideoInfo = {
   filename: string;
   duration_seconds: number | null;
-  source: "upload" | "youtube";
-  youtube_video_id?: string | null;
+  source: "upload" | "youtube" | "twitter";
+  external_video_id?: string | null;
 };
 export type TranscriptSegment = {
   text: string;
@@ -230,7 +230,7 @@ export async function getVideoStatus(id: string): Promise<{ status: string }> {
   return r.json();
 }
 
-export async function submitYoutubeUrl(
+export async function submitVideoUrl(
   url: string,
   opts: { speaker?: string; speechDate?: string } = {}
 ): Promise<{ id: string }> {

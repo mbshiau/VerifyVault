@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createAnalysis, submitYoutubeUrl, uploadVideo } from "@/lib/api";
+import { createAnalysis, submitVideoUrl, uploadVideo } from "@/lib/api";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".m4v", ".webm"];
 const VIDEO_ACCEPT = VIDEO_EXTENSIONS.join(",");
 const MAX_VIDEO_MB = 500;
-const YOUTUBE_URL_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i;
+const SUPPORTED_VIDEO_URL_RE =
+  /^https?:\/\/(www\.|m\.|mobile\.)?(youtube\.com|youtu\.be|twitter\.com|x\.com)\//i;
 
-type Mode = "text" | "video" | "youtube";
+type Mode = "text" | "video" | "url";
 
 export default function Home() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function Home() {
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
 
   function pickVideoFile(file: File | null) {
     setError(null);
@@ -68,11 +69,11 @@ export default function Home() {
       return;
     }
 
-    if (mode === "youtube") {
-      if (!youtubeUrl.trim()) return;
+    if (mode === "url") {
+      if (!videoUrl.trim()) return;
       setLoading(true);
       try {
-        const { id } = await submitYoutubeUrl(youtubeUrl.trim(), {
+        const { id } = await submitVideoUrl(videoUrl.trim(), {
           speaker: speaker.trim() || undefined,
           speechDate: speechDate || undefined,
         });
@@ -99,7 +100,7 @@ export default function Home() {
       ? text.length >= 20
       : mode === "video"
         ? videoFile !== null
-        : YOUTUBE_URL_RE.test(youtubeUrl.trim());
+        : SUPPORTED_VIDEO_URL_RE.test(videoUrl.trim());
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
@@ -140,12 +141,12 @@ export default function Home() {
             </button>
             <button
               type="button"
-              onClick={() => setMode("youtube")}
+              onClick={() => setMode("url")}
               className={`rounded-md px-4 py-1.5 transition ${
-                mode === "youtube" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+                mode === "url" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              YouTube link
+              Video link
             </button>
           </div>
 
@@ -251,19 +252,19 @@ export default function Home() {
               </div>
             )}
 
-            {mode === "youtube" && (
+            {mode === "url" && (
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">YouTube video URL</span>
+                <span className="text-sm font-medium text-slate-700">YouTube or X/Twitter video URL</span>
                 <input
                   type="url"
-                  value={youtubeUrl}
-                  onChange={(e) => setYoutubeUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status/..."
                   className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
                 />
                 <p className="text-xs text-slate-500">
-                  Only the audio is used for transcription - the video itself is played back directly from YouTube,
-                  never downloaded or re-hosted.
+                  Only the audio is used for transcription - the video itself is played back directly from its
+                  original source, never downloaded or re-hosted.
                 </p>
               </label>
             )}
@@ -280,12 +281,12 @@ export default function Home() {
                 {loading
                   ? mode === "video"
                     ? "Uploading..."
-                    : mode === "youtube"
+                    : mode === "url"
                       ? "Fetching..."
                       : "Analyzing..."
                   : mode === "video"
                     ? "Upload & analyze"
-                    : mode === "youtube"
+                    : mode === "url"
                       ? "Fetch & analyze"
                       : "Analyze"}
               </button>
@@ -302,7 +303,7 @@ export default function Home() {
               <p>• Press releases, newsletters, and policy statements</p>
               <p>• Social posts or short public remarks</p>
               <p>• Video of speeches, interviews, debates, or press conferences</p>
-              <p>• YouTube links to any of the above</p>
+              <p>• YouTube or X/Twitter links to any of the above</p>
             </div>
           </section>
 

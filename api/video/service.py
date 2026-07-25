@@ -14,6 +14,7 @@ from models import Analysis, Transcript, User, Video
 from video import media
 
 _YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "music.youtube.com"}
+_TWITTER_HOSTS = {"twitter.com", "www.twitter.com", "mobile.twitter.com", "x.com", "www.x.com"}
 
 
 class VideoValidationError(RuntimeError):
@@ -22,8 +23,18 @@ class VideoValidationError(RuntimeError):
     """
 
 
-def is_youtube_url(url: str) -> bool:
-    return (urlparse(url).hostname or "").lower() in _YOUTUBE_HOSTS
+def detect_url_source(url: str) -> str | None:
+    """Returns "youtube"/"twitter" for a recognized host, else None. Adding a
+    new URL-based platform is just adding another host set + branch here -
+    everything downstream (media.py, run_video_pipeline_task) is already
+    generic over "any non-upload source".
+    """
+    host = (urlparse(url).hostname or "").lower()
+    if host in _YOUTUBE_HOSTS:
+        return "youtube"
+    if host in _TWITTER_HOSTS:
+        return "twitter"
+    return None
 
 
 def create_video_analysis(
@@ -72,7 +83,7 @@ def create_video_analysis(
     return row
 
 
-def create_youtube_analysis(
+def create_url_analysis(
     db: Session,
     *,
     analysis_id: UUID,
@@ -81,11 +92,12 @@ def create_youtube_analysis(
     speech_date: date | None,
     user: User | None,
 ) -> Analysis:
-    if not is_youtube_url(url):
-        raise VideoValidationError("Please provide a youtube.com or youtu.be video link.")
+    source = detect_url_source(url)
+    if source is None:
+        raise VideoValidationError("Please provide a YouTube or X/Twitter video link.")
 
     try:
-        info = media.fetch_youtube_info(url)
+        info = media.fetch_url_video_info(url)
     except media.MediaError as e:
         raise VideoValidationError(str(e))
 
@@ -113,9 +125,9 @@ def create_youtube_analysis(
             size_bytes=0,
             duration_seconds=info["duration_seconds"],
             storage_path=None,
-            source="youtube",
-            youtube_video_id=info.get("youtube_video_id") or None,
-            youtube_url=url,
+            source=source,
+            external_video_id=info.get("external_video_id") or None,
+            source_url=url,
         )
     )
     db.commit()
@@ -142,10 +154,10 @@ def run_video_pipeline_task(analysis_id: UUID) -> None:
             db.commit()
             audio_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.audio.mp3")
             try:
-                if video.source == "youtube":
-                    media.download_youtube_audio(video.youtube_url, audio_path)
-                else:
+                if video.source == "upload":
                     media.extract_audio(video.storage_path, audio_path)
+                else:
+                    media.download_remote_audio(video.source_url, audio_path)
 
                 row.status = "transcribing"
                 db.commit()
