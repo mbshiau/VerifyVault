@@ -2,7 +2,7 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Analysis, Claim, analyzeSelectedClaim, getAnalysis } from "@/lib/api";
+import { Analysis, Claim, analyzeSelectedClaim, deleteClaim, findMoreSources, getAnalysis } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
 import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
@@ -25,6 +25,12 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [selectedClaimError, setSelectedClaimError] = useState<string | null>(null);
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
   const [duplicateClaimIndex, setDuplicateClaimIndex] = useState<number | null>(null);
+  const [claimPendingDelete, setClaimPendingDelete] = useState<Claim | null>(null);
+  const [deletingClaim, setDeletingClaim] = useState(false);
+  const [deleteClaimError, setDeleteClaimError] = useState<string | null>(null);
+  const [findingMoreSourcesFor, setFindingMoreSourcesFor] = useState<string | null>(null);
+  const [moreSourcesErrorFor, setMoreSourcesErrorFor] = useState<string | null>(null);
+  const [moreSourcesError, setMoreSourcesError] = useState<string | null>(null);
   const markRefs = useRef<Map<number, HTMLElement>>(new Map());
   const sidebarRefs = useRef<Map<number, HTMLElement>>(new Map());
   const textPanelRef = useRef<HTMLDivElement>(null);
@@ -143,6 +149,48 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       setSelectedClaimError(e instanceof Error ? e.message : "Failed to analyze selected text.");
     } finally {
       setAnalyzingSelection(false);
+    }
+  }
+
+  function requestDeleteClaim(claim: Claim) {
+    setDeleteClaimError(null);
+    setClaimPendingDelete(claim);
+  }
+
+  async function confirmDeleteClaim() {
+    if (!data || !claimPendingDelete?.id || deletingClaim) return;
+    setDeletingClaim(true);
+    setDeleteClaimError(null);
+    try {
+      await deleteClaim(data.id, claimPendingDelete.id);
+      const deletedId = claimPendingDelete.id;
+      setSelectedClaims((prev) => prev.filter((c) => c.id !== deletedId));
+      setData((prev) => (prev ? { ...prev, claims: prev.claims.filter((c) => c.id !== deletedId) } : prev));
+      setActiveIndex(null);
+      setClaimPendingDelete(null);
+    } catch (e) {
+      setDeleteClaimError(e instanceof Error ? e.message : "Failed to delete claim.");
+    } finally {
+      setDeletingClaim(false);
+    }
+  }
+
+  async function handleFindMoreSources(claim: Claim) {
+    if (!data || !claim.id || findingMoreSourcesFor) return;
+    setFindingMoreSourcesFor(claim.id);
+    setMoreSourcesErrorFor(null);
+    setMoreSourcesError(null);
+    try {
+      const updated = await findMoreSources(data.id, claim.id);
+      setSelectedClaims((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setData((prev) =>
+        prev ? { ...prev, claims: prev.claims.map((c) => (c.id === updated.id ? updated : c)) } : prev
+      );
+    } catch (e) {
+      setMoreSourcesErrorFor(claim.id);
+      setMoreSourcesError(e instanceof Error ? e.message : "Failed to find more sources.");
+    } finally {
+      setFindingMoreSourcesFor(null);
     }
   }
 
@@ -297,6 +345,11 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                       onSelect={(i) => selectClaim(i, "sidebar")}
                       matchedIndexes={matchedIndexes}
                       itemRefs={sidebarRefs}
+                      onDelete={requestDeleteClaim}
+                      onFindMoreSources={handleFindMoreSources}
+                      findingMoreSourcesFor={findingMoreSourcesFor}
+                      moreSourcesErrorFor={moreSourcesErrorFor}
+                      moreSourcesError={moreSourcesError}
                     />
                     {unmatched.length > 0 && (
                       <p className="mt-2 text-xs text-neutral-400">
@@ -330,6 +383,27 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           if (duplicateClaimIndex !== null) selectClaim(duplicateClaimIndex, "text");
           setDuplicateClaimIndex(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={claimPendingDelete !== null}
+        title="Delete this claim?"
+        description={
+          claimPendingDelete
+            ? `"${claimPendingDelete.text}" and its sources will be permanently removed from this analysis.${
+                deleteClaimError ? ` ${deleteClaimError}` : ""
+              }`
+            : undefined
+        }
+        confirmLabel={deletingClaim ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+        danger
+        onCancel={() => {
+          if (deletingClaim) return;
+          setClaimPendingDelete(null);
+          setDeleteClaimError(null);
+        }}
+        onConfirm={confirmDeleteClaim}
       />
     </main>
   );
