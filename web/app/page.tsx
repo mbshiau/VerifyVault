@@ -108,9 +108,9 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
-      <div className="max-w-3xl">
+      <div className="max-w-3xl p-6 rounded-2xl bg-white/30 backdrop-blur-sm shadow-[0_20px_40px_rgba(59,130,246,0.08)] border border-white/10">
         <p className="text-sm uppercase tracking-[0.25em] text-stone-500 font-medium">VerifyVault</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blueberry-700 to-blueberry-400 drop-shadow-[0_6px_16px_rgba(59,130,246,0.12)]">
           Analyze political text and video with more clarity.
         </h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">
@@ -123,7 +123,7 @@ export default function Home() {
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <form
           onSubmit={onSubmit}
-          className="rounded-lg border divider-light bg-white p-6 shadow-sm shadow-stone-100"
+          className="rounded-2xl border border-white/10 bg-white/60 backdrop-blur-sm p-6 shadow-[0_20px_40px_rgba(59,130,246,0.08)]"
         >
           <div className="mb-6 inline-flex rounded-md border divider-light bg-stone-50 p-1 text-sm font-medium">
             <button
@@ -295,7 +295,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className="sticky bottom-4 z-20 mt-6 border-t divider-light bg-white pt-4">
+          <div className="sticky bottom-4 z-20 mt-6 border-t divider-light bg-white/70 backdrop-blur-sm pt-4">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs text-stone-500 micro-text">Visible while scrolling</p>
               <button

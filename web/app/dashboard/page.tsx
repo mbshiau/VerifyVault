@@ -69,12 +69,13 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-8">
+      <div className="rounded-2xl bg-white/30 backdrop-blur-sm border border-white/10 p-6 shadow-[0_20px_40px_rgba(59,130,246,0.08)]">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">My Analyses</h1>
+          <h1 className="text-2xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blueberry-700 to-blueberry-400 drop-shadow-[0_6px_16px_rgba(59,130,246,0.12)]">My Analyses</h1>
           <p className="mt-0 text-xs text-stone-400 micro-text">Saved and in-progress analyses, plus your bookmarked library items</p>
         </div>
-        <Link href="/" className="rounded-md bg-blueberry-600 px-4 py-2 text-sm font-medium text-white hover:bg-blueberry-700">
+        <Link href="/" className="rounded-md bg-blueberry-600 px-4 py-2 text-sm font-medium text-white hover:bg-blueberry-700 shadow-sm shadow-blueberry-300">
           New Analysis
         </Link>
       </header>
@@ -83,7 +84,7 @@ export default function DashboardPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by title..."
-        className="mt-4 w-full rounded-md border divider-light bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
+              className="mt-4 w-full rounded-md border border-white/10 bg-white/60 backdrop-blur-sm p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
       />
 
       {isLoading && <p className="mt-8 text-sm text-stone-600">Loading…</p>}
@@ -95,7 +96,7 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <ul className="mt-6 divide-y divider-light overflow-hidden rounded-lg border divider-light bg-white">
+      <ul className="mt-6 divide-y divider-light overflow-hidden rounded-2xl border border-white/10 bg-white/60 shadow-[0_20px_40px_rgba(59,130,246,0.08)]">
         {filtered.map((item) => (
           <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
             <div className="min-w-0 flex-1">
@@ -182,7 +183,7 @@ export default function DashboardPage() {
           <p className="mt-4 text-sm text-neutral-500">You haven't bookmarked anything yet.</p>
         )}
         {!bookmarksLoading && !bookmarksError && bookmarks && bookmarks.length > 0 && (
-          <ul className="mt-4 divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+          <ul className="mt-4 divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-white/10 bg-white/60 shadow-[0_20px_40px_rgba(59,130,246,0.08)]">
             {bookmarks.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -203,6 +204,7 @@ export default function DashboardPage() {
           </ul>
         )}
       </section>
+      </div>
 
       <ShareDialog
         open={sharingItem !== null}
