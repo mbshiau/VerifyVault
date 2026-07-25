@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnalysisListItem, deleteAnalysis, listAnalyses, renameAnalysis, updateVisibility } from "@/lib/api";
+import { AnalysisListItem, deleteAnalysis, listAnalyses, renameAnalysis, updateVisibility, listBookmarks } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ShareDialog } from "@/components/ShareDialog";
 
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [renameValue, setRenameValue] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [sharingItem, setSharingItem] = useState<AnalysisListItem | null>(null);
+  const { data: bookmarks, isLoading: bookmarksLoading, error: bookmarksError } = useQuery({ queryKey: ["bookmarks"], queryFn: listBookmarks });
 
   const renameMutation = useMutation({
     mutationFn: ({ id, title }: { id: string; title: string }) => renameAnalysis(id, title),
@@ -71,7 +72,7 @@ export default function DashboardPage() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">My Analyses</h1>
-          <p className="mt-0 text-xs text-stone-400 micro-text">Saved and in-progress analyses</p>
+          <p className="mt-0 text-xs text-stone-400 micro-text">Saved and in-progress analyses, plus your bookmarked library items</p>
         </div>
         <Link href="/" className="rounded-md bg-blueberry-600 px-4 py-2 text-sm font-medium text-white hover:bg-blueberry-700">
           New Analysis
@@ -168,6 +169,40 @@ export default function DashboardPage() {
           </li>
         ))}
       </ul>
+
+      {/* Bookmarked items section */}
+      <section className="mt-8">
+        <header className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Bookmarked library items</h2>
+          <Link href="/library" className="text-sm text-neutral-600 hover:text-neutral-900">Browse public library</Link>
+        </header>
+        {bookmarksLoading && <p className="mt-4 text-sm text-neutral-500">Loading…</p>}
+        {bookmarksError && <p className="mt-4 text-sm text-red-600">{bookmarksError instanceof Error ? bookmarksError.message : "Failed to load bookmarks"}</p>}
+        {!bookmarksLoading && !bookmarksError && (!bookmarks || bookmarks.length === 0) && (
+          <p className="mt-4 text-sm text-neutral-500">You haven't bookmarked anything yet.</p>
+        )}
+        {!bookmarksLoading && !bookmarksError && bookmarks && bookmarks.length > 0 && (
+          <ul className="mt-4 divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+            {bookmarks.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/library/${item.id}`} className="truncate text-sm font-semibold text-blueberry-700 hover:underline">{item.title}</Link>
+                  <p className="mt-0.5 text-xs text-stone-500">
+                    <span className="text-black">{item.claim_count} claim{item.claim_count === 1 ? "" : "s"}</span>
+                    {" · "}
+                    <span className={item.source_type === "video" || item.source_type === "text" ? "text-blueberry-600 font-medium" : "text-black"}>
+                      {item.source_type}
+                    </span>
+                    {" · "}
+                    <span className="text-black">{formatDate(item.published_at || item.created_at)}</span>
+                  </p>
+                </div>
+                <Link href={`/library/${item.id}`} className="shrink-0 rounded-md border border-blueberry-300 px-2.5 py-1 text-xs font-medium text-blueberry-700 hover:bg-blueberry-50">View</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <ShareDialog
         open={sharingItem !== null}

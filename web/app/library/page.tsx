@@ -86,9 +86,7 @@ export default function LibraryPage() {
               key={s}
               type="button"
               onClick={() => setSort(s)}
-              className={`rounded-md px-4 py-1.5 capitalize transition ${
-                sort === s ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900"
-              }`}
+              className={`rounded-md px-4 py-1.5 capitalize transition ${sort === s ? "bg-blueberry-600 text-white" : "text-neutral-600 hover:text-neutral-900"}`}
             >
               {s}
             </button>
@@ -102,7 +100,7 @@ export default function LibraryPage() {
             type="button"
             onClick={() => setTopic(null)}
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
-              topic === null ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-600"
+              topic === null ? "border-blueberry-600 bg-blueberry-600 text-white" : "border-neutral-300 text-neutral-600"
             }`}
           >
             All topics
@@ -113,7 +111,7 @@ export default function LibraryPage() {
               type="button"
               onClick={() => setTopic(t === topic ? null : t)}
               className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                topic === t ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-600"
+                topic === t ? "border-blueberry-600 bg-blueberry-600 text-white" : "border-neutral-300 text-neutral-600"
               }`}
             >
               {t}
@@ -155,7 +153,7 @@ function LibraryCard({
   onToggleBookmark: () => void;
 }) {
   return (
-    <article className="flex flex-col justify-between rounded-lg border border-neutral-200 bg-white p-4">
+    <article className="flex flex-col justify-between rounded-lg border border-blueberry-600 bg-white p-4">
       <div>
         <Link href={`/library/${item.id}`} className="text-sm font-semibold text-neutral-900 hover:underline">
           {item.title}
@@ -183,7 +181,7 @@ function LibraryCard({
           onClick={onToggleBookmark}
           className={`mt-3 self-start rounded-md border px-2.5 py-1 text-xs font-medium ${
             isBookmarked
-              ? "border-neutral-900 bg-neutral-900 text-white"
+                          ? "border-blueberry-600 bg-blueberry-600 text-white"
               : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
           }`}
         >
