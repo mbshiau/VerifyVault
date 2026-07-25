@@ -6,6 +6,7 @@ import { Analysis, Claim, analyzeSelectedClaim, getAnalysis } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
 import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ClaimHighlightedText } from "./ClaimHighlighter";
 import { ClaimsSidebar } from "./ClaimsSidebar";
 import { AnnotationLayer } from "./AnnotationLayer";
@@ -23,6 +24,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [selectedClaims, setSelectedClaims] = useState<Claim[]>([]);
   const [selectedClaimError, setSelectedClaimError] = useState<string | null>(null);
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
+  const [duplicateClaimIndex, setDuplicateClaimIndex] = useState<number | null>(null);
   const markRefs = useRef<Map<number, HTMLElement>>(new Map());
   const sidebarRefs = useRef<Map<number, HTMLElement>>(new Map());
   const textPanelRef = useRef<HTMLDivElement>(null);
@@ -77,6 +79,18 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     const next = selection.toString().replace(/\s+/g, " ").trim();
     if (!next) return;
     if (next === selectedText) return;
+
+    // If the selection overlaps a sentence that's already highlighted as a
+    // claim (pipeline-detected or previously user-added), don't open the
+    // analyze popover at all - surface a dialog instead so re-analyzing an
+    // already-known claim isn't even an option.
+    for (const [index, el] of markRefs.current.entries()) {
+      if (range.intersectsNode(el)) {
+        selection.removeAllRanges();
+        setDuplicateClaimIndex(index);
+        return;
+      }
+    }
 
     const rect = range.getBoundingClientRect();
     const panelRect = textPanelRef.current.getBoundingClientRect();
@@ -300,6 +314,23 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           )}
         </div>
       </AnnotationLayer>
+
+      <ConfirmDialog
+        open={duplicateClaimIndex !== null}
+        title="Already a detected claim"
+        description={
+          duplicateClaimIndex !== null
+            ? `"${allClaims[duplicateClaimIndex]?.text}" has already been identified and analyzed - select a different sentence to analyze something new.`
+            : undefined
+        }
+        confirmLabel="View Claim"
+        cancelLabel="Dismiss"
+        onCancel={() => setDuplicateClaimIndex(null)}
+        onConfirm={() => {
+          if (duplicateClaimIndex !== null) selectClaim(duplicateClaimIndex, "text");
+          setDuplicateClaimIndex(null);
+        }}
+      />
     </main>
   );
 }

@@ -207,12 +207,15 @@ EXTRACT_TOOL = {
 }
 
 
-CLAIM_RULES = """\
+# The core test for whether a statement is a checkable factual claim AT ALL -
+# this has nothing to do with how important it is to any particular
+# argument, so it applies identically whether a claim was found by bulk
+# extraction over a whole document or by a user deliberately selecting one
+# sentence they specifically want checked.
+CLAIM_TYPE_RULES = """\
 ## What counts as a verifiable factual claim
 
-Extract only concrete factual assertions that materially advance the speaker's argument and could reasonably be verified using official records, legislation, government data, court documents, voting records, public statements, financial disclosures, or reliable reporting.
-
-A claim should communicate substantive information about politics, government, public policy, elections, economics, public safety, or other matters of public interest. Extract the claim even if it is disputed or likely false.
+A verifiable factual claim is a concrete assertion that could reasonably be verified using official records, legislation, government data, court documents, voting records, public statements, financial disclosures, or reliable reporting. Include the claim even if it is disputed or likely false.
 
 Include:
 - Events, actions, or decisions by identifiable people or organizations.
@@ -221,26 +224,43 @@ Include:
 - Claims about voting records, finances, fundraising, criminal proceedings, official conduct, or public positions.
 - Direct factual allegations against a public official or organization.
 
-EXCLUDE a statement if it is only: - An opinion, insult, value judgment, or subjective characterization (e.g. "too radical", "devastating", "the most corrupt president"). 
-- Campaign messaging, slogans, or political branding (e.g. "Make America Great Again", "America is back"). 
-- A broad statement of effort, intent, mission, or policy objective rather than a discrete factual assertion (e.g. "working every day to lower costs", "fighting for free and fair elections", "protecting the American people", "securing the border", "delivering results"). 
-- A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for..."). 
+EXCLUDE a statement if it is only: - An opinion, insult, value judgment, or subjective characterization (e.g. "too radical", "devastating", "the most corrupt president").
+- Campaign messaging, slogans, or political branding (e.g. "Make America Great Again", "America is back").
+- A broad statement of effort, intent, mission, or policy objective rather than a discrete factual assertion (e.g. "working every day to lower costs", "fighting for free and fair elections", "protecting the American people", "securing the border", "delivering results").
+- A promise or commitment about future action (e.g. "I will continue to stand with him", "we will fight for...").
 - A prediction or speculation about the future with no concrete factual anchor (e.g. "we will have fewer providers", "AI may replace jobs").
 - **A characterization of a bill or policy's political viability or chances of passage** (e.g. "this has no path in the Senate", "is unlikely to pass", "faces long odds", "will never get a vote"). EXCLUDE this even when it's phrased as reporting what a person or group "has made clear," "has said," or "has signaled." This pattern will look like it satisfies the "public positions" INCLUDE rule above, but it does not: the claim-worthy content is the prediction itself (will this pass or not), and that prediction doesn't become a checkable fact just because it's attributed to someone's statement. The "public positions" rule is for claims like *what office someone holds* or *how someone voted*, not for a group's forecast about a bill's future prospects.
 - A hypothetical or conditional example (e.g. "if you have access to a nurse practitioner...").
-- A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...", "we will..."). 
-- A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs"). 
-- A question, including rhetorical or interview questions. 
-- A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college"). 
-- A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI"). 
+- A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...", "we will...").
+- A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs").
+- A question, including rhetorical or interview questions.
+- A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college").
+- A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI").
 - Speculative attribution of motive, intent, or causation without supporting evidence (e.g. "Trump is targeting me because I'm running for president", "some of that anxiety is due to AI").
-- **Introductions or identifying information whose only purpose is to identify a speaker or participant**, including names, titles, committee assignments, organizational affiliations, or statements like "I'm joined today by...", "Ranking Member Robert Garcia...", or "I'll now turn it over to...". Although technically verifiable, these are incidental background facts, not claims being advanced.
+
+None of the above are checkable factual assertions in the first place - no amount of relevance to the speaker's argument makes an opinion, prediction, hypothetical, or rhetorical question fact-checkable.
+"""
+
+# Only applies when extracting claims in bulk across a whole document, where
+# surfacing every technically-verifiable-but-incidental fact would flood the
+# report with noise. Does NOT apply to a single user-selected sentence -
+# a user deliberately highlighting a sentence and asking to check it is
+# itself the signal that it's worth checking, so centrality-to-the-argument
+# is not re-litigated there.
+CLAIM_RELEVANCE_RULES = """\
+## Relevance: only extract claims that materially advance the argument
+
+Beyond being a verifiable factual claim, a claim extracted from a full document must also materially support one of the document's key ideas - the things it's actually trying to argue, not just topics it touches on in passing.
+
+EXCLUDE, even though technically verifiable:
+- **Introductions or identifying information whose only purpose is to identify a speaker or participant**, including names, titles, committee assignments, organizational affiliations, or statements like "I'm joined today by...", "Ranking Member Robert Garcia...", or "I'll now turn it over to...". These are incidental background facts, not claims being advanced.
 - **Self-introduction or autobiographical scene-setting about the speaker's own identity, background, or personal history**, when it's establishing who they are or their personal credibility rather than materially supporting the argument that follows (e.g. "I'm the new senator from the great state of Michigan, where I grew up", "I was recruited by the CIA and did three tours in Iraq"). This applies even when the fact is dramatic, impressive, or technically checkable (military service, career history, hometown, biographical milestones) - the test is whether the rest of the speech's argument depends on it, not whether it's verifiable. Contrast with a role/constituency statement that the speaker then argues from (e.g. "I represent a rural committee outside of Chicago" immediately followed by claims about that district) - that one stays in because a later point hinges on it.
+- **A mention of the speaker's own (or a shared) election win used as a rhetorical opener or credibility-establishing aside**, rather than a point the argument depends on (e.g. "President Trump and I both won here in November", "I won my election by a wide margin, and that's a mandate"). This is the same pattern as self-introduction above - it's scene-setting ("I have a mandate to speak on this") rather than a discrete factual assertion the speech is built around, even though who-won-what is technically verifiable. Contrast with a claim that specifically argues from the details of that result (e.g. "I won every county in the district" used to rebut a specific opponent's claim about the district) - that one stays in because the argument hinges on the specifics, not just the fact of having won.
 
 When deciding whether to extract a statement, ask:
 **Would an independent fact-checking organization realistically write a fact check evaluating this specific statement?**
 
-Prefer claims that a professional fact-checking organization would realistically devote resources to verifying because 
+Prefer claims that a professional fact-checking organization would realistically devote resources to verifying because
 they materially affect public understanding of politics, policy, government, elections, economics, public safety,
  or other matters of public interest. Do not extract incidental background facts whose truth is obvious, routine, or unlikely to be disputed.
 
@@ -260,7 +280,9 @@ Example - a speech arguing a public official is corrupt:
 - "He received a $400 million private jet as a gift." -> materiality ~0.9. If false, the corruption argument weakens a lot - this is central.
 - "Federal agents knocked on former employees' doors." -> materiality ~0.5. Somewhat relevant supporting detail, but the core argument doesn't hinge on it.
 - "He watches everything." -> materiality ~0.1. Whether literally true or not barely matters to the argument - it's color, not substance.
+"""
 
+_WORKED_EXAMPLES = """\
 ## Worked examples
 
 Segment: "I represent a rural committee outside of Chicago. In the last year we have had closures. Those facilities need help to stay open. I have a bill to get that moving. ... We will have fewer providers. If you have access to a nurse practitioner in your community and there is no physician what is he supposed to do? ... It doesn't have to explode the deficit."
@@ -280,6 +302,33 @@ Segment: "Today I voted to ban Members of Congress from selling and trading indi
 Claims to extract: "Today I voted to ban Members of Congress from selling and trading individual stocks" (a specific voting-record action); "House Republicans inserted provisions from the Save America Act into the bill" (factual portion of a mixed opinion/fact statement about the bill's actual contents); "I've voted against these voter ID provisions repeatedly" (voting-record claim).
 
 Not claims: "Senate Republicans have made clear this has no path in the Senate" (a prediction about the bill's political prospects, not made checkable just because it's attributed to what Senate Republicans "have made clear"); "this is the best chance we have to enact a stock ban" (opinion/political judgment).
+"""
+
+# Full rules used for bulk extraction across a whole document: type + relevance + examples.
+CLAIM_RULES = CLAIM_TYPE_RULES + "\n" + CLAIM_RELEVANCE_RULES + "\n" + _WORKED_EXAMPLES
+
+# Deliberately much looser than CLAIM_TYPE_RULES: for a single user-selected
+# sentence, the user's own act of selecting it and clicking "analyze" is
+# already the strongest possible relevance/worth-checking signal there is -
+# stronger than anything a rule about opinions or predictions could
+# override. So this only blocks sentences with literally nothing checkable
+# in them at all; everything else gets attempted, with any opinion/rhetoric
+# framing noted in the explanation rather than used to reject the sentence.
+SELECTED_CLAIM_RULES = """\
+## When to accept a user-selected sentence for fact-checking
+
+Accept the sentence (is_claim=true) as long as it contains ANY factual content that could be checked - err strongly toward accepting. This includes cases CLAIM_TYPE_RULES-style extraction would normally reject:
+- An opinion or characterization built on an underlying factual claim (e.g. "he's the worst president ever because he raised taxes twice" - extract and check "he raised taxes twice", noting the "worst ever" framing is opinion).
+- A prediction or speculation that names a concrete anchor (e.g. "the bill will cost taxpayers $2 billion" - the dollar figure is checkable even though the prediction itself is uncertain).
+- A characterization of a bill's political viability, campaign messaging/slogans with a specific factual referent, broad statements of intent that reference a specific action, and similar borderline content that CLAIM_TYPE_RULES would filter out of a bulk extraction - accept these for a manual selection instead of rejecting them.
+- Self-introduction, biographical statements, or role/constituency statements - these are verifiable regardless of whether they matter to a larger argument.
+
+When a sentence is mostly opinion/rhetoric with only a small factual kernel, extract and check that kernel specifically, and use the explanation field to flag which part is the checkable fact versus the surrounding opinion or framing - do not use that mix as a reason to reject the whole sentence.
+
+Only reject (is_claim=false) if the sentence has NO factual content to check at all:
+- A pure question with no embedded factual assertion (e.g. "what are we going to do about this?").
+- A sentence fragment too incomplete or vague to identify any checkable subject (e.g. "and that's exactly the problem").
+- A pure exclamation or applause line with zero informational content (e.g. "God bless America!").
 """
 
 
@@ -359,15 +408,20 @@ SELECTED_CLAIM_SCHEMA = {
         "is_claim": {
             "type": "boolean",
             "description": (
-                "True only if the selected sentence is a concrete, verifiable factual claim "
-                "that materially supports one of the text's key ideas."
+                "True as long as the selected sentence contains ANY factual content that could be "
+                "checked, even a small kernel inside a mostly-opinion or mostly-rhetorical sentence. "
+                "The user deliberately chose this exact sentence to check, so err strongly toward "
+                "true. Set this false ONLY if the sentence has no factual content whatsoever - a "
+                "pure question, an incomplete/vague fragment with no identifiable subject, or a pure "
+                "exclamation/applause line."
             ),
         },
         "reason": {
             "type": "string",
             "description": (
-                "If is_claim is false, explain briefly why (e.g. opinion, rhetorical framing, "
-                "question, too vague, or not relevant to the argument)."
+                "If is_claim is false, explain briefly why there was no factual content to check at "
+                "all (e.g. pure question, fragment, exclamation) - not because it's an opinion, "
+                "prediction, or unimportant to the argument, since those are still accepted."
             ),
         },
         "claim": {
@@ -431,9 +485,14 @@ def analyze_selected_claim(
                 "role": "system",
                 "content": (
                     _current_context_note(speech_date) +
-                    "You decide whether a selected sentence is a claim worth fact-checking and return "
-                    "structured output via the record_selected_claim tool. Always call the tool exactly once.\n\n"
-                    + CLAIM_RULES
+                    "You decide whether a user-selected sentence has any factual content worth "
+                    "fact-checking, and return structured output via the record_selected_claim tool. "
+                    "Always call the tool exactly once. The user deliberately chose this exact sentence "
+                    "because they want it checked - that choice is a stronger signal than any rule about "
+                    "opinions, predictions, or relevance, so err strongly toward accepting it. Reject a "
+                    "sentence only if it has literally no factual content to check at all - per the rules "
+                    "below.\n\n"
+                    + SELECTED_CLAIM_RULES
                 ),
             },
             {
@@ -441,8 +500,11 @@ def analyze_selected_claim(
                 "content": (
                     f"{speaker_line}"
                     "Given the full political text and one user-selected sentence, decide if the selected "
-                    "sentence is a concrete factual claim that is both verifiable and materially relevant "
-                    "to the text's argument. If it is not, set is_claim=false and explain why in reason.\n\n"
+                    "sentence has any factual content worth checking. Accept it (is_claim=true) even if "
+                    "it's mostly opinion, prediction, or rhetoric, as long as some checkable fact is "
+                    "present - extract just that factual kernel. Only set is_claim=false if there's no "
+                    "factual content at all (a pure question, an incomplete fragment, or a pure "
+                    "exclamation). If so, explain why in reason.\n\n"
                     f"Full text:\n---\n{text}\n---\n\n"
                     f"Selected sentence:\n---\n{selected}\n---"
                 ),
@@ -1138,7 +1200,32 @@ _STOPWORDS = frozenset({
     "will", "would", "could", "should", "than", "then", "into", "onto", "upon",
     "when", "where", "which", "while", "been", "being", "does", "doing", "such",
     "some", "any", "more", "most", "other", "said", "says",
+    # Generic reporting/procedural words that show up constantly in claim text
+    # but carry no topical search signal - a handful in isolation barely move
+    # the needle, but several stacked together in one query dilute a keyword-
+    # based (Tavily "basic") search past the point where it can find the
+    # actually distinctive terms, falling back to near-random low-score
+    # matches instead. Observed concretely: dropping just these words from an
+    # otherwise-identical query took the top result's relevance score from
+    # 0.19 (an unrelated blog) to 0.88 (the exact right article).
+    "recently", "attempted", "attempt", "attempts", "colleagues", "colleague",
+    "lawmakers", "lawmaker",
 })
+
+_NATIONAL_TOPIC_RE = re.compile(
+    r"\b(president|federal|congress|senate|white house|supreme court)\b", flags=re.IGNORECASE
+)
+
+
+def _keep_search_token(t: str) -> bool:
+    """True if a regex-extracted word should survive into the search query.
+
+    Normally requires >2 chars, but a 2-letter all-caps token (AI, US, UK,
+    EU, UN, ...) is kept regardless of length - the blanket length filter
+    was silently dropping "AI" from queries about AI policy/regulation,
+    which is exactly the word that made those queries findable.
+    """
+    return len(t) > 2 or (len(t) == 2 and t.isupper())
 
 
 _FACT_CHECK_SIGNAL_RE = re.compile(
@@ -1179,7 +1266,7 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
         # to match against rather than signal. Dedup while preserving order.
         claim_tokens = list(dict.fromkeys(
             t.lower() for t in re.findall(r"[A-Za-z]+", claim_query)
-            if len(t) > 2 and t.lower() not in _STOPWORDS
+            if _keep_search_token(t) and t.lower() not in _STOPWORDS
         ))
         # Anchor the search on whoever/whatever this specific claim is about
         # (its related_entities), not unconditionally the speaker - a claim can
@@ -1207,12 +1294,12 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
         entity_tokens = [
             t.lower() for term in context_terms
             for t in re.findall(r"[A-Za-z]+", term)
-            if len(t) > 2 and t.lower() not in _STOPWORDS
+            if _keep_search_token(t) and t.lower() not in _STOPWORDS
         ]
         alias_tokens = [
             t.lower() for term in _expand_subject_aliases([claim_query])
             for t in re.findall(r"[A-Za-z]+", term)
-            if len(t) > 2 and t.lower() not in _STOPWORDS
+            if _keep_search_token(t) and t.lower() not in _STOPWORDS
         ]
         query = " ".join(dict.fromkeys(claim_tokens + entity_tokens + alias_tokens)).strip()
         # Only inject the state into the query text for claims that are
@@ -1225,8 +1312,14 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
         # filter below still applies regardless, since it only removes sources
         # that name a *different* state and is harmless for national topics.
         is_national_topic = bool(
-            re.search(r"\b(president|federal|congress|senate|white house|supreme court)\b", claim_query, flags=re.IGNORECASE)
-            or any(re.search(r"\b(president|federal)\b", t, flags=re.IGNORECASE) for t in context_terms)
+            _NATIONAL_TOPIC_RE.search(claim_query)
+            # Same pattern applied to context_terms (e.g. related_entities
+            # like "U.S. Congress") - previously this branch only checked for
+            # "president|federal", missing "congress"/"senate", so a claim
+            # about Congress whose sentence never says the word "congress"
+            # literally (e.g. "some of my colleagues...") fell through to
+            # having an unrelated state name injected into the search query.
+            or any(_NATIONAL_TOPIC_RE.search(t) for t in context_terms)
         )
         if claim_state and not is_national_topic:
             query = f"{query} {claim_state}"
