@@ -2,7 +2,7 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Analysis, Claim, Source, analyzeSelectedClaim, getAnalysis } from "@/lib/api";
+import { Analysis, Claim, analyzeSelectedClaim, deleteClaim, findMoreSources, getAnalysis } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
 import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
@@ -33,8 +33,12 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [selectedClaimError, setSelectedClaimError] = useState<string | null>(null);
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
   const [duplicateClaimIndex, setDuplicateClaimIndex] = useState<number | null>(null);
-  const [copiedClaimIndex, setCopiedClaimIndex] = useState<number | null>(null);
-  const [snippetTarget, setSnippetTarget] = useState<SnippetTarget | null>(null);
+  const [claimPendingDelete, setClaimPendingDelete] = useState<Claim | null>(null);
+  const [deletingClaim, setDeletingClaim] = useState(false);
+  const [deleteClaimError, setDeleteClaimError] = useState<string | null>(null);
+  const [findingMoreSourcesFor, setFindingMoreSourcesFor] = useState<string | null>(null);
+  const [moreSourcesErrorFor, setMoreSourcesErrorFor] = useState<string | null>(null);
+  const [moreSourcesError, setMoreSourcesError] = useState<string | null>(null);
   const markRefs = useRef<Map<number, HTMLElement>>(new Map());
   const textPanelRef = useRef<HTMLDivElement>(null);
 
@@ -164,10 +168,46 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     }
   }
 
-  async function copyClaim(claim: Claim, index: number) {
-    await navigator.clipboard.writeText(claim.text);
-    setCopiedClaimIndex(index);
-    window.setTimeout(() => setCopiedClaimIndex((current) => (current === index ? null : current)), 1200);
+  function requestDeleteClaim(claim: Claim) {
+    setDeleteClaimError(null);
+    setClaimPendingDelete(claim);
+  }
+
+  async function confirmDeleteClaim() {
+    if (!data || !claimPendingDelete?.id || deletingClaim) return;
+    setDeletingClaim(true);
+    setDeleteClaimError(null);
+    try {
+      await deleteClaim(data.id, claimPendingDelete.id);
+      const deletedId = claimPendingDelete.id;
+      setSelectedClaims((prev) => prev.filter((c) => c.id !== deletedId));
+      setData((prev) => (prev ? { ...prev, claims: prev.claims.filter((c) => c.id !== deletedId) } : prev));
+      setActiveIndex(null);
+      setClaimPendingDelete(null);
+    } catch (e) {
+      setDeleteClaimError(e instanceof Error ? e.message : "Failed to delete claim.");
+    } finally {
+      setDeletingClaim(false);
+    }
+  }
+
+  async function handleFindMoreSources(claim: Claim) {
+    if (!data || !claim.id || findingMoreSourcesFor) return;
+    setFindingMoreSourcesFor(claim.id);
+    setMoreSourcesErrorFor(null);
+    setMoreSourcesError(null);
+    try {
+      const updated = await findMoreSources(data.id, claim.id);
+      setSelectedClaims((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setData((prev) =>
+        prev ? { ...prev, claims: prev.claims.map((c) => (c.id === updated.id ? updated : c)) } : prev
+      );
+    } catch (e) {
+      setMoreSourcesErrorFor(claim.id);
+      setMoreSourcesError(e instanceof Error ? e.message : "Failed to find more sources.");
+    } finally {
+      setFindingMoreSourcesFor(null);
+    }
   }
 
   if (error)
@@ -344,14 +384,29 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                           </div>
                         </div>
 
-                        {isExpanded && (
-                          <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
-                            {claim.explanation && (
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Explanation</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{claim.explanation}</p>
-                              </div>
-                            )}
+                <div className="md:sticky md:top-8 md:max-h-[75vh] md:overflow-y-auto md:pr-1">
+                  <AnnotationLayer active={annotationMode}>
+                    <ClaimsSidebar
+                      claims={allClaims}
+                      order={displayOrder}
+                      activeIndex={activeIndex}
+                      onSelect={(i) => selectClaim(i, "sidebar")}
+                      matchedIndexes={matchedIndexes}
+                      itemRefs={sidebarRefs}
+                      onDelete={requestDeleteClaim}
+                      onFindMoreSources={handleFindMoreSources}
+                      findingMoreSourcesFor={findingMoreSourcesFor}
+                      moreSourcesErrorFor={moreSourcesErrorFor}
+                      moreSourcesError={moreSourcesError}
+                    />
+                    {unmatched.length > 0 && (
+                      <p className="mt-2 text-xs text-neutral-400">
+                        Claims with a gray dot couldn&apos;t be matched to one specific sentence.
+                      </p>
+                    )}
+                  </AnnotationLayer>
+                </div>
+              </section>
 
                             {claim.context && (
                               <div>
@@ -467,12 +522,26 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         }}
       />
 
-      {snippetTarget && (
-        <SourceSnippetModal
-          target={snippetTarget}
-          onClose={() => setSnippetTarget(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={claimPendingDelete !== null}
+        title="Delete this claim?"
+        description={
+          claimPendingDelete
+            ? `"${claimPendingDelete.text}" and its sources will be permanently removed from this analysis.${
+                deleteClaimError ? ` ${deleteClaimError}` : ""
+              }`
+            : undefined
+        }
+        confirmLabel={deletingClaim ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+        danger
+        onCancel={() => {
+          if (deletingClaim) return;
+          setClaimPendingDelete(null);
+          setDeleteClaimError(null);
+        }}
+        onConfirm={confirmDeleteClaim}
+      />
     </main>
   );
 }

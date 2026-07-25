@@ -83,6 +83,57 @@ def delete_analysis(db: Session, analysis: Analysis) -> None:
     db.commit()
 
 
+def get_claim_in_analysis(analysis: Analysis, claim_id: UUID) -> Claim:
+    for c in analysis.claims:
+        if c.id == claim_id:
+            return c
+    raise HTTPException(404, "not found")
+
+
+def delete_claim(db: Session, claim: Claim) -> None:
+    db.delete(claim)
+    db.commit()
+
+
+def add_more_sources(db: Session, claim: Claim, speaker: str | None, limit: int = 3) -> Claim:
+    """Search for and attach up to `limit` additional sources for a claim,
+    skipping URLs it already has, then recompute confidence over the merged
+    set. Analysis-level jurisdiction isn't persisted (see run_pipeline_task),
+    so this follows the same jurisdiction=None precedent as user-selected
+    claims rather than trying to re-derive it.
+    """
+    exclude_urls = {s.url for s in claim.sources}
+    claim_dict = {
+        "text": claim.extracted_claim,
+        "quote": claim.quote,
+        "context": claim.context,
+        "related_entities": claim.related_entities or [],
+        "time_reference": claim.time_reference,
+    }
+    new_sources = pipeline.find_more_sources(claim_dict, speaker, None, exclude_urls, limit=limit)
+    for s in new_sources:
+        claim.sources.append(
+            Source(
+                url=s.get("url", ""),
+                title=s.get("title", ""),
+                publisher=_derive_publisher(s.get("url", "")),
+                snippet=s.get("snippet", ""),
+                retrieval_score=s.get("score"),
+                relation=s.get("relation", ""),
+            )
+        )
+    if new_sources:
+        all_relations = {s.url: (s.relation or "") for s in claim.sources}
+        confidence, confidence_explanation = pipeline.calculate_confidence(
+            claim_dict, list(claim.sources), all_relations, speaker=speaker
+        )
+        claim.confidence = confidence
+        claim.confidence_explanation = confidence_explanation
+    db.commit()
+    db.refresh(claim)
+    return claim
+
+
 def claim_ownership(db: Session, analysis: Analysis, user: User) -> Analysis:
     if analysis.user_id is not None:
         raise HTTPException(409, "analysis already has an owner")

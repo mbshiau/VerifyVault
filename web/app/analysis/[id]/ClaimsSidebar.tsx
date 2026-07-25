@@ -3,7 +3,19 @@
 import type { MutableRefObject } from "react";
 import { Claim } from "@/lib/api";
 
-export function ClaimDetails({ claim }: { claim: Claim }) {
+export function ClaimDetails({
+  claim,
+  onDelete,
+  onFindMoreSources,
+  findingMoreSources,
+  moreSourcesError,
+}: {
+  claim: Claim;
+  onDelete?: (claim: Claim) => void;
+  onFindMoreSources?: (claim: Claim) => void;
+  findingMoreSources?: boolean;
+  moreSourcesError?: string | null;
+}) {
   return (
     <div className="space-y-3 border-t border-neutral-100 px-3 pb-3 pt-2">
       {claim.explanation && (
@@ -64,7 +76,35 @@ export function ClaimDetails({ claim }: { claim: Claim }) {
         ) : (
           <p className="mt-0.5 text-xs text-neutral-500">No sources found.</p>
         )}
+
+        {onFindMoreSources && claim.id && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFindMoreSources(claim);
+            }}
+            disabled={findingMoreSources}
+            className="mt-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {findingMoreSources ? "Searching..." : "+ Find more sources"}
+          </button>
+        )}
+        {moreSourcesError && <p className="mt-1 text-xs text-red-600">{moreSourcesError}</p>}
       </div>
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(claim);
+          }}
+          className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline"
+        >
+          Delete this claim
+        </button>
+      )}
     </div>
   );
 }
@@ -76,6 +116,11 @@ export function ClaimsSidebar({
   onSelect,
   matchedIndexes,
   itemRefs,
+  onDelete,
+  onFindMoreSources,
+  findingMoreSourcesFor,
+  moreSourcesErrorFor,
+  moreSourcesError,
 }: {
   claims: Claim[];
   order?: number[];
@@ -83,6 +128,11 @@ export function ClaimsSidebar({
   onSelect: (index: number) => void;
   matchedIndexes: Set<number>;
   itemRefs: MutableRefObject<Map<number, HTMLElement>>;
+  onDelete?: (claim: Claim) => void;
+  onFindMoreSources?: (claim: Claim) => void;
+  findingMoreSourcesFor?: string | null;
+  moreSourcesErrorFor?: string | null;
+  moreSourcesError?: string | null;
 }) {
   if (claims.length === 0) {
     return <p className="text-sm text-neutral-500">No claims detected.</p>;
@@ -130,7 +180,15 @@ export function ClaimsSidebar({
                 <span className="mt-0.5 flex-none text-neutral-400">{isActive ? "▾" : "▸"}</span>
               </button>
 
-              {isActive && <ClaimDetails claim={claim} />}
+              {isActive && (
+                <ClaimDetails
+                  claim={claim}
+                  onDelete={onDelete}
+                  onFindMoreSources={onFindMoreSources}
+                  findingMoreSources={!!claim.id && findingMoreSourcesFor === claim.id}
+                  moreSourcesError={moreSourcesErrorFor === claim.id ? moreSourcesError : null}
+                />
+              )}
             </li>
           );
         })}

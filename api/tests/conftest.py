@@ -138,9 +138,22 @@ def fake_analyze_selected_claim(text: str, selected_text: str, speaker=None, spe
     }
 
 
+def fake_find_more_sources(claim, speaker, jurisdiction, exclude_urls, limit=3) -> list:
+    return [
+        {
+            "title": "More Source",
+            "url": "https://example.gov/more",
+            "snippet": "more snippet",
+            "score": 0.5,
+            "relation": "supports",
+        }
+    ]
+
+
 @pytest.fixture
 def patch_pipeline(monkeypatch):
     import pipeline
 
     monkeypatch.setattr(pipeline, "run", fake_pipeline_run)
     monkeypatch.setattr(pipeline, "analyze_selected_claim", fake_analyze_selected_claim)
+    monkeypatch.setattr(pipeline, "find_more_sources", fake_find_more_sources)

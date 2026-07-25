@@ -132,3 +132,86 @@ def test_claim_sentence_endpoint_persists_user_selected_claim(client, patch_pipe
     sources = [c["source"] for c in refreshed.json()["claims"]]
     assert sources.count("pipeline") == 1
     assert sources.count("user_selected") == 1
+
+
+def test_delete_claim(client, patch_pipeline, db_session):
+    from models import Claim, Source
+
+    token = _register_and_login(client)
+    created = client.post("/api/analysis", json={"text": TEXT}, headers=_auth_headers(token))
+    analysis_id = created.json()["id"]
+    fetched = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(token)).json()
+    claim_id = fetched["claims"][0]["id"]
+
+    delete_r = client.delete(f"/api/analysis/{analysis_id}/claims/{claim_id}", headers=_auth_headers(token))
+    assert delete_r.status_code == 204
+
+    refreshed = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(token))
+    assert refreshed.json()["claims"] == []
+    assert db_session.get(Claim, claim_id) is None
+    assert db_session.query(Source).count() == 0
+
+
+def test_delete_claim_cross_user_is_404(client, patch_pipeline):
+    owner_token = _register_and_login(client, "claimowner@example.com")
+    other_token = _register_and_login(client, "claimother@example.com")
+
+    created = client.post("/api/analysis", json={"text": TEXT}, headers=_auth_headers(owner_token))
+    analysis_id = created.json()["id"]
+    fetched = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(owner_token)).json()
+    claim_id = fetched["claims"][0]["id"]
+
+    r = client.delete(f"/api/analysis/{analysis_id}/claims/{claim_id}", headers=_auth_headers(other_token))
+    assert r.status_code == 404
+
+    # Owner can still see the claim untouched.
+    still_there = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(owner_token))
+    assert len(still_there.json()["claims"]) == 1
+
+
+def test_add_more_sources(client, patch_pipeline):
+    token = _register_and_login(client)
+    created = client.post("/api/analysis", json={"text": TEXT}, headers=_auth_headers(token))
+    analysis_id = created.json()["id"]
+    fetched = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(token)).json()
+    claim = fetched["claims"][0]
+    claim_id = claim["id"]
+    original_urls = {s["url"] for s in claim["sources"]}
+
+    r = client.post(f"/api/analysis/{analysis_id}/claims/{claim_id}/more-sources", headers=_auth_headers(token))
+    assert r.status_code == 200
+    body = r.json()
+    new_urls = {s["url"] for s in body["sources"]}
+    assert original_urls <= new_urls
+    assert "https://example.gov/more" in new_urls
+
+    refreshed = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(token))
+    refreshed_claim = next(c for c in refreshed.json()["claims"] if c["id"] == claim_id)
+    assert "https://example.gov/more" in {s["url"] for s in refreshed_claim["sources"]}
+
+
+def test_add_more_sources_cross_user_is_404(client, patch_pipeline):
+    owner_token = _register_and_login(client, "moresrc-owner@example.com")
+    other_token = _register_and_login(client, "moresrc-other@example.com")
+
+    created = client.post("/api/analysis", json={"text": TEXT}, headers=_auth_headers(owner_token))
+    analysis_id = created.json()["id"]
+    fetched = client.get(f"/api/analysis/{analysis_id}", headers=_auth_headers(owner_token)).json()
+    claim_id = fetched["claims"][0]["id"]
+
+    r = client.post(
+        f"/api/analysis/{analysis_id}/claims/{claim_id}/more-sources", headers=_auth_headers(other_token)
+    )
+    assert r.status_code == 404
+
+
+def test_delete_unknown_claim_id_is_404(client, patch_pipeline):
+    token = _register_and_login(client)
+    created = client.post("/api/analysis", json={"text": TEXT}, headers=_auth_headers(token))
+    analysis_id = created.json()["id"]
+
+    r = client.delete(
+        f"/api/analysis/{analysis_id}/claims/00000000-0000-0000-0000-000000000000",
+        headers=_auth_headers(token),
+    )
+    assert r.status_code == 404

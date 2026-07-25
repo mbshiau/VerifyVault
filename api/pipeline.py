@@ -1210,6 +1210,13 @@ _STOPWORDS = frozenset({
     # 0.19 (an unrelated blog) to 0.88 (the exact right article).
     "recently", "attempted", "attempt", "attempts", "colleagues", "colleague",
     "lawmakers", "lawmaker",
+    # Same failure mode, different batch: generic pronouns/verbs that add zero
+    # topical signal but still dilute a keyword-bag query. Observed concretely
+    # on a claim about AI infringing on workers' privacy/discrimination - with
+    # these words left in, the query scored ~0.01 on Tavily (top result was an
+    # unrelated shopping app called "Wish"); dropping them alone took the top
+    # result to ~0.5 (genuinely on-topic EEOC/employment-law coverage).
+    "also", "make", "harder", "prove", "their", "were", "used", "against", "them", "status",
 })
 
 _NATIONAL_TOPIC_RE = re.compile(
@@ -1253,158 +1260,179 @@ def _is_bare_transcript_reprint(quote: str, title: str, snippet: str) -> bool:
     return not _FACT_CHECK_SIGNAL_RE.search(f"{title} {snippet}")
 
 
+def _rank_claim_sources(
+    claim: dict,
+    speaker: str | None,
+    jurisdiction: str | None = None,
+    exclude_urls: set[str] | None = None,
+    limit: int = 3,
+) -> list[dict]:
+    """Search for and rank sources for one claim. Returns the top `limit` ranked
+    source dicts (title/url/snippet/score), with `exclude_urls` filtered out
+    before ranking - shared by the initial fact-check pass and the "find more
+    sources" follow-up, which excludes whatever's already attached to the claim.
+    Raises on search failure; callers decide how to handle that.
+    """
+    exclude_urls = exclude_urls or set()
+    claim_query = claim.get("quote") or claim["text"]
+    # Search on the claim's distinctive keywords, not the raw sentence -
+    # rhetorical/opinion-laden phrasing ("is doubling down on his failed
+    # tariff strategy — and sticking Americans with the bill") tanks
+    # Tavily's relevance scoring (observed ~0.2 for the full sentence vs.
+    # ~0.85+ for the same claim reduced to content words), likely because
+    # a keyword search engine treats the extra rhetorical words as noise
+    # to match against rather than signal. Dedup while preserving order.
+    claim_tokens = list(dict.fromkeys(
+        t.lower() for t in re.findall(r"[A-Za-z]+", claim_query)
+        if _keep_search_token(t) and t.lower() not in _STOPWORDS
+    ))
+    # Anchor the search on whoever/whatever this specific claim is about
+    # (its related_entities), not unconditionally the speaker - a claim can
+    # be about a third party entirely (e.g. an opponent), and always
+    # appending the speaker biases search results toward the speaker's
+    # own coverage instead of the claim's actual subject.
+    context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
+    context_terms = _expand_subject_aliases([str(t) for t in context_terms if str(t).strip()])
+    claim_year = _parse_claim_year(claim.get("time_reference"))
+    # Prefer the document-level jurisdiction (inferred once at extraction
+    # time from the model's own knowledge, e.g. recognizing the speaker as
+    # a specific state's governor) since a claim's own text/context often
+    # never names the state at all. Fall back to regex-detecting a state
+    # name from this claim specifically only if that's unavailable.
+    jurisdiction_normalized = (jurisdiction or "").strip().lower()
+    claim_state = (
+        jurisdiction_normalized if jurisdiction_normalized in _US_STATES
+        else _mentioned_state(claim.get("context"), claim.get("text"), claim_query)
+    )
+    # Tokenize and dedup related_entities into the same flat word list as
+    # claim_tokens, rather than appending raw entity phrases - otherwise
+    # words already present in the quote (e.g. "Republican", "county
+    # board") get restated by an overlapping entity name and end up
+    # over-weighted, which made results noticeably less stable in testing.
+    entity_tokens = [
+        t.lower() for term in context_terms
+        for t in re.findall(r"[A-Za-z]+", term)
+        if _keep_search_token(t) and t.lower() not in _STOPWORDS
+    ]
+    alias_tokens = [
+        t.lower() for term in _expand_subject_aliases([claim_query])
+        for t in re.findall(r"[A-Za-z]+", term)
+        if _keep_search_token(t) and t.lower() not in _STOPWORDS
+    ]
+    query = " ".join(dict.fromkeys(claim_tokens + entity_tokens + alias_tokens)).strip()
+    # Only inject the state into the query text for claims that are
+    # actually state/local in nature - a claim about federal policy (e.g.
+    # a governor commenting on the President's tariffs) has nothing to do
+    # with the speaker's own state, and appending it tanked relevance in
+    # testing (0.85 -> 0.02 for a Trump tariffs claim once "massachusetts"
+    # was added, since the query now searches for a combination that
+    # doesn't correspond to any real coverage). The wrong-state exclusion
+    # filter below still applies regardless, since it only removes sources
+    # that name a *different* state and is harmless for national topics.
+    is_national_topic = bool(
+        _NATIONAL_TOPIC_RE.search(claim_query)
+        # Same pattern applied to context_terms (e.g. related_entities
+        # like "U.S. Congress") - previously this branch only checked for
+        # "president|federal", missing "congress"/"senate", so a claim
+        # about Congress whose sentence never says the word "congress"
+        # literally (e.g. "some of my colleagues...") fell through to
+        # having an unrelated state name injected into the search query.
+        or any(_NATIONAL_TOPIC_RE.search(t) for t in context_terms)
+    )
+    if claim_state and not is_national_topic:
+        query = f"{query} {claim_state}"
+    if claim_year is not None:
+        query = f"{query} {claim_year}"
+    # If the claim looks like a schedule/event (contains a time or words like "markup"/"subcommittee"),
+    # bias the query toward calendars/events and government sites. Checked
+    # against the original sentence, not the keyword query, since digit-based
+    # time patterns like "3:00 pm" don't survive the [A-Za-z]+ tokenization above.
+    is_schedule_like = bool(
+        re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)\b", claim_query, flags=re.IGNORECASE)
+        or re.search(r"\b(markup|subcommittee|hearing|meeting|schedule|calendar)\b", claim_query, flags=re.IGNORECASE)
+    )
+    if is_schedule_like:
+        query = query + " calendar OR schedule OR event site:house.gov OR site:senate.gov"
+    # Request a larger set and then re-rank to prioritize event/calendar pages.
+    # Scale the raw pool with `limit` so excluding already-seen URLs (the
+    # "find more sources" case) still leaves enough candidates to rank from.
+    search_k = max(6, limit * 2)
+    sources = search_sources(
+        query,
+        k=search_k,
+        speaker=speaker,
+        claim_year=claim_year,
+        context_terms=context_terms,
+    )
+    sources = [s for s in sources if s.get("url") not in exclude_urls]
+    # If strict subject/date filtering yields nothing, do one broader pass
+    # with alias-expanded terminology, then let downstream scoring/reranking
+    # keep only the strongest matches.
+    if not sources:
+        fallback_query = query
+        if claim_year is not None:
+            fallback_query = f"{fallback_query} {max(1950, claim_year - 1)} {claim_year} {claim_year + 1}"
+        sources = search_sources(
+            fallback_query,
+            k=max(8, limit * 3),
+            speaker=speaker,
+            claim_year=claim_year,
+            context_terms=_expand_subject_aliases(context_terms + [claim_query]),
+        )
+        sources = [s for s in sources if s.get("url") not in exclude_urls]
+    # Drop sources naming a different state than this claim is about - a
+    # same-shaped-but-wrong-state .gov page isn't weaker evidence, it's
+    # evidence for something else entirely.
+    sources = [s for s in sources if not _mentions_other_state(s.get("url", ""), claim_state)]
+    # Drop sources that are just reprinting the speech itself (full
+    # transcripts, live blogs quoting the line) - these aren't independent
+    # verification even when hosted on a third-party domain, since they
+    # contain nothing but the speaker's own words back at them.
+    sources = [
+        s for s in sources
+        if not _is_bare_transcript_reprint(claim_query, s.get("title", ""), s.get("snippet", ""))
+    ]
+    # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
+    subject_phrases, subject_tokens = _subject_signals(context_terms)
+
+    def _source_score(s: dict) -> float:
+        score = 0.0
+        title = (s.get("title", "") or "").lower()
+        snippet = (s.get("snippet", "") or "").lower()
+        url = s.get("url", "") or ""
+        score += _subject_match_strength(
+            {"title": title, "content": snippet, "url": url},
+            subject_phrases,
+            subject_tokens,
+        )
+        # boost if title or snippet contains event-related tokens from the claim
+        for tok in ("markup", "subcommittee", "hearing", "committee", "calendar", "schedule", "markup"):
+            if tok in title or tok in snippet or tok in url.lower():
+                score += 1.0
+        # boost if snippet/title mentions specific numeric tokens (six, seven, 6, 7)
+        for numtok in ("six", "seven", "6", "7"):
+            if numtok in title or numtok in snippet:
+                score += 0.8
+        # small boost for containing any claim tokens
+        for ct in claim_tokens:
+            if ct in title or ct in snippet:
+                score += 0.1
+        if claim_year is not None:
+            content_year = _parse_content_year(s.get("snippet", "") or "")
+            if content_year is not None and content_year < claim_year - 1:
+                score -= min(1.2, 0.35 * (claim_year - content_year))
+        # domain trust nudges already applied, keep that as tiebreaker
+        score += _domain_score(url) * 0.01
+        return score
+
+    sources.sort(key=_source_score, reverse=True)
+    return sources[:limit]
+
+
 def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None = None) -> None:
     """Search for and rank sources for one claim, then score confidence. Mutates claim in place."""
     try:
-        claim_query = claim.get("quote") or claim["text"]
-        # Search on the claim's distinctive keywords, not the raw sentence -
-        # rhetorical/opinion-laden phrasing ("is doubling down on his failed
-        # tariff strategy — and sticking Americans with the bill") tanks
-        # Tavily's relevance scoring (observed ~0.2 for the full sentence vs.
-        # ~0.85+ for the same claim reduced to content words), likely because
-        # a keyword search engine treats the extra rhetorical words as noise
-        # to match against rather than signal. Dedup while preserving order.
-        claim_tokens = list(dict.fromkeys(
-            t.lower() for t in re.findall(r"[A-Za-z]+", claim_query)
-            if _keep_search_token(t) and t.lower() not in _STOPWORDS
-        ))
-        # Anchor the search on whoever/whatever this specific claim is about
-        # (its related_entities), not unconditionally the speaker - a claim can
-        # be about a third party entirely (e.g. an opponent), and always
-        # appending the speaker biases search results toward the speaker's
-        # own coverage instead of the claim's actual subject.
-        context_terms = claim.get("related_entities") or ([speaker] if speaker else [])
-        context_terms = _expand_subject_aliases([str(t) for t in context_terms if str(t).strip()])
-        claim_year = _parse_claim_year(claim.get("time_reference"))
-        # Prefer the document-level jurisdiction (inferred once at extraction
-        # time from the model's own knowledge, e.g. recognizing the speaker as
-        # a specific state's governor) since a claim's own text/context often
-        # never names the state at all. Fall back to regex-detecting a state
-        # name from this claim specifically only if that's unavailable.
-        jurisdiction_normalized = (jurisdiction or "").strip().lower()
-        claim_state = (
-            jurisdiction_normalized if jurisdiction_normalized in _US_STATES
-            else _mentioned_state(claim.get("context"), claim.get("text"), claim_query)
-        )
-        # Tokenize and dedup related_entities into the same flat word list as
-        # claim_tokens, rather than appending raw entity phrases - otherwise
-        # words already present in the quote (e.g. "Republican", "county
-        # board") get restated by an overlapping entity name and end up
-        # over-weighted, which made results noticeably less stable in testing.
-        entity_tokens = [
-            t.lower() for term in context_terms
-            for t in re.findall(r"[A-Za-z]+", term)
-            if _keep_search_token(t) and t.lower() not in _STOPWORDS
-        ]
-        alias_tokens = [
-            t.lower() for term in _expand_subject_aliases([claim_query])
-            for t in re.findall(r"[A-Za-z]+", term)
-            if _keep_search_token(t) and t.lower() not in _STOPWORDS
-        ]
-        query = " ".join(dict.fromkeys(claim_tokens + entity_tokens + alias_tokens)).strip()
-        # Only inject the state into the query text for claims that are
-        # actually state/local in nature - a claim about federal policy (e.g.
-        # a governor commenting on the President's tariffs) has nothing to do
-        # with the speaker's own state, and appending it tanked relevance in
-        # testing (0.85 -> 0.02 for a Trump tariffs claim once "massachusetts"
-        # was added, since the query now searches for a combination that
-        # doesn't correspond to any real coverage). The wrong-state exclusion
-        # filter below still applies regardless, since it only removes sources
-        # that name a *different* state and is harmless for national topics.
-        is_national_topic = bool(
-            _NATIONAL_TOPIC_RE.search(claim_query)
-            # Same pattern applied to context_terms (e.g. related_entities
-            # like "U.S. Congress") - previously this branch only checked for
-            # "president|federal", missing "congress"/"senate", so a claim
-            # about Congress whose sentence never says the word "congress"
-            # literally (e.g. "some of my colleagues...") fell through to
-            # having an unrelated state name injected into the search query.
-            or any(_NATIONAL_TOPIC_RE.search(t) for t in context_terms)
-        )
-        if claim_state and not is_national_topic:
-            query = f"{query} {claim_state}"
-        if claim_year is not None:
-            query = f"{query} {claim_year}"
-        # If the claim looks like a schedule/event (contains a time or words like "markup"/"subcommittee"),
-        # bias the query toward calendars/events and government sites. Checked
-        # against the original sentence, not the keyword query, since digit-based
-        # time patterns like "3:00 pm" don't survive the [A-Za-z]+ tokenization above.
-        is_schedule_like = bool(
-            re.search(r"\b\d{1,2}:\d{2}\s*(am|pm)\b", claim_query, flags=re.IGNORECASE)
-            or re.search(r"\b(markup|subcommittee|hearing|meeting|schedule|calendar)\b", claim_query, flags=re.IGNORECASE)
-        )
-        if is_schedule_like:
-            query = query + " calendar OR schedule OR event site:house.gov OR site:senate.gov"
-        # Request a larger set and then re-rank to prioritize event/calendar pages
-        sources = search_sources(
-            query,
-            k=6,
-            speaker=speaker,
-            claim_year=claim_year,
-            context_terms=context_terms,
-        )
-        # If strict subject/date filtering yields nothing, do one broader pass
-        # with alias-expanded terminology, then let downstream scoring/reranking
-        # keep only the strongest matches.
-        if not sources:
-            fallback_query = query
-            if claim_year is not None:
-                fallback_query = f"{fallback_query} {max(1950, claim_year - 1)} {claim_year} {claim_year + 1}"
-            sources = search_sources(
-                fallback_query,
-                k=8,
-                speaker=speaker,
-                claim_year=claim_year,
-                context_terms=_expand_subject_aliases(context_terms + [claim_query]),
-            )
-        # Drop sources naming a different state than this claim is about - a
-        # same-shaped-but-wrong-state .gov page isn't weaker evidence, it's
-        # evidence for something else entirely.
-        sources = [s for s in sources if not _mentions_other_state(s.get("url", ""), claim_state)]
-        # Drop sources that are just reprinting the speech itself (full
-        # transcripts, live blogs quoting the line) - these aren't independent
-        # verification even when hosted on a third-party domain, since they
-        # contain nothing but the speaker's own words back at them.
-        sources = [
-            s for s in sources
-            if not _is_bare_transcript_reprint(claim_query, s.get("title", ""), s.get("snippet", ""))
-        ]
-        # Re-rank sources to prefer ones that explicitly mention schedule/event tokens
-        subject_phrases, subject_tokens = _subject_signals(context_terms)
-
-        def _source_score(s: dict) -> float:
-            score = 0.0
-            title = (s.get("title", "") or "").lower()
-            snippet = (s.get("snippet", "") or "").lower()
-            url = s.get("url", "") or ""
-            score += _subject_match_strength(
-                {"title": title, "content": snippet, "url": url},
-                subject_phrases,
-                subject_tokens,
-            )
-            # boost if title or snippet contains event-related tokens from the claim
-            for tok in ("markup", "subcommittee", "hearing", "committee", "calendar", "schedule", "markup"):
-                if tok in title or tok in snippet or tok in url.lower():
-                    score += 1.0
-            # boost if snippet/title mentions specific numeric tokens (six, seven, 6, 7)
-            for numtok in ("six", "seven", "6", "7"):
-                if numtok in title or numtok in snippet:
-                    score += 0.8
-            # small boost for containing any claim tokens
-            for ct in claim_tokens:
-                if ct in title or ct in snippet:
-                    score += 0.1
-            if claim_year is not None:
-                content_year = _parse_content_year(s.get("snippet", "") or "")
-                if content_year is not None and content_year < claim_year - 1:
-                    score -= min(1.2, 0.35 * (claim_year - content_year))
-            # domain trust nudges already applied, keep that as tiebreaker
-            score += _domain_score(url) * 0.01
-            return score
-
-        sources.sort(key=_source_score, reverse=True)
-        # Trim to the top 3
-        sources = sources[:3]
+        sources = _rank_claim_sources(claim, speaker, jurisdiction, limit=3)
         relations = explain_relevance(claim["text"], sources)
         for s in sources:
             s["relation"] = relations.get(s["url"], "")
@@ -1417,6 +1445,30 @@ def _fact_check_claim(claim: dict, speaker: str | None, jurisdiction: str | None
     except Exception:
         claim["sources"] = []
         claim["confidence_explanation"] = "error calculating confidence"
+
+
+def find_more_sources(
+    claim: dict,
+    speaker: str | None,
+    jurisdiction: str | None,
+    exclude_urls: set[str],
+    limit: int = 3,
+) -> list[dict]:
+    """Search again for a claim, skipping URLs already attached to it, and
+    return up to `limit` newly-ranked sources (with a relevance explanation
+    for each) - used by the "find more sources" endpoint. Does not touch
+    confidence; the caller recomputes that once the new sources are merged in.
+    """
+    try:
+        sources = _rank_claim_sources(claim, speaker, jurisdiction, exclude_urls=exclude_urls, limit=limit)
+        if not sources:
+            return []
+        relations = explain_relevance(claim["text"], sources)
+        for s in sources:
+            s["relation"] = relations.get(s["url"], "")
+        return sources
+    except Exception:
+        return []
 
 
 def _build_entity_detail(

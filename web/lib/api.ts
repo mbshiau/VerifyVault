@@ -143,6 +143,17 @@ export async function claimAnalysisOwnership(id: string): Promise<Analysis> {
   return r.json();
 }
 
+export async function deleteClaim(analysisId: string, claimId: string): Promise<void> {
+  const r = await apiFetch(`/api/analysis/${analysisId}/claims/${claimId}`, { method: "DELETE" });
+  if (!r.ok && r.status !== 204) throw new Error(await readErrorMessage(r));
+}
+
+export async function findMoreSources(analysisId: string, claimId: string): Promise<Claim> {
+  const r = await apiFetch(`/api/analysis/${analysisId}/claims/${claimId}/more-sources`, { method: "POST" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
 export async function analyzeSelectedClaim(id: string, selectedText: string): Promise<SelectedClaimAnalysis> {
   const r = await apiFetch(`/api/analysis/${id}/claim-sentence`, {
     method: "POST",

@@ -79,6 +79,32 @@ def delete_analysis(
     return Response(status_code=204)
 
 
+@router.delete("/{analysis_id}/claims/{claim_id}", status_code=204)
+def delete_claim(
+    analysis_id: UUID,
+    claim_id: UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+):
+    row = service.get_accessible_analysis(db, analysis_id, user)
+    claim = service.get_claim_in_analysis(row, claim_id)
+    service.delete_claim(db, claim)
+    return Response(status_code=204)
+
+
+@router.post("/{analysis_id}/claims/{claim_id}/more-sources", response_model=ClaimOut)
+def add_more_sources(
+    analysis_id: UUID,
+    claim_id: UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+):
+    row = service.get_accessible_analysis(db, analysis_id, user)
+    claim = service.get_claim_in_analysis(row, claim_id)
+    claim = service.add_more_sources(db, claim, row.speaker)
+    return ClaimOut.from_orm_claim(claim)
+
+
 @router.post("/{analysis_id}/claim-sentence", response_model=AnalyzeSelectedClaimResponse)
 def analyze_selected_claim(
     analysis_id: UUID,
