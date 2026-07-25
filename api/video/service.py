@@ -1,5 +1,7 @@
 import os
+import tempfile
 from datetime import date
+from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -11,11 +13,17 @@ from db import SessionLocal
 from models import Analysis, Transcript, User, Video
 from video import media
 
+_YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "music.youtube.com"}
+
 
 class VideoValidationError(RuntimeError):
     """Raised for a rejected upload (too long, unreadable) so the router can
     turn it into a 400 with a helpful message before any Analysis row exists.
     """
+
+
+def is_youtube_url(url: str) -> bool:
+    return (urlparse(url).hostname or "").lower() in _YOUTUBE_HOSTS
 
 
 def create_video_analysis(
@@ -64,6 +72,57 @@ def create_video_analysis(
     return row
 
 
+def create_youtube_analysis(
+    db: Session,
+    *,
+    analysis_id: UUID,
+    url: str,
+    speaker: str | None,
+    speech_date: date | None,
+    user: User | None,
+) -> Analysis:
+    if not is_youtube_url(url):
+        raise VideoValidationError("Please provide a youtube.com or youtu.be video link.")
+
+    try:
+        info = media.fetch_youtube_info(url)
+    except media.MediaError as e:
+        raise VideoValidationError(str(e))
+
+    max_duration = settings.video_max_duration_seconds
+    if info["duration_seconds"] > max_duration:
+        raise VideoValidationError(f"Video is longer than the {max_duration // 3600}-hour limit.")
+
+    title = (info.get("title") or "").strip() or "Untitled Analysis"
+    row = Analysis(
+        id=analysis_id,
+        user_id=user.id if user else None,
+        title=title,
+        original_text="",
+        speaker=speaker,
+        speech_date=speech_date,
+        source_type="video",
+        status="uploading",
+    )
+    db.add(row)
+    db.add(
+        Video(
+            id=analysis_id,
+            filename=title,
+            content_type="",
+            size_bytes=0,
+            duration_seconds=info["duration_seconds"],
+            storage_path=None,
+            source="youtube",
+            youtube_video_id=info.get("youtube_video_id") or None,
+            youtube_url=url,
+        )
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 def run_video_pipeline_task(analysis_id: UUID) -> None:
     """Background task: extracts audio, transcribes it, then calls the exact
     same pipeline.run() text analyses use, and maps each resulting claim's
@@ -81,9 +140,12 @@ def run_video_pipeline_task(analysis_id: UUID) -> None:
         try:
             row.status = "extracting_audio"
             db.commit()
-            audio_path = video.storage_path + ".audio.mp3"
+            audio_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.audio.mp3")
             try:
-                media.extract_audio(video.storage_path, audio_path)
+                if video.source == "youtube":
+                    media.download_youtube_audio(video.youtube_url, audio_path)
+                else:
+                    media.extract_audio(video.storage_path, audio_path)
 
                 row.status = "transcribing"
                 db.commit()

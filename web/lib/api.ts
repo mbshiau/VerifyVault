@@ -30,7 +30,12 @@ export type Claim = {
   sources: Source[];
 };
 export type Entity = { name: string; type: string };
-export type VideoInfo = { filename: string; duration_seconds: number | null };
+export type VideoInfo = {
+  filename: string;
+  duration_seconds: number | null;
+  source: "upload" | "youtube";
+  youtube_video_id?: string | null;
+};
 export type TranscriptSegment = {
   text: string;
   start_ms: number;
@@ -221,6 +226,23 @@ export function uploadVideo(
 
 export async function getVideoStatus(id: string): Promise<{ status: string }> {
   const r = await apiFetch(`/api/video/${id}/status`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function submitYoutubeUrl(
+  url: string,
+  opts: { speaker?: string; speechDate?: string } = {}
+): Promise<{ id: string }> {
+  const r = await apiFetch(`/api/video/from-url`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      url,
+      speaker: opts.speaker || undefined,
+      speech_date: opts.speechDate || undefined,
+    }),
+  });
   if (!r.ok) throw new Error(await readErrorMessage(r));
   return r.json();
 }

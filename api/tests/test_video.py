@@ -114,6 +114,82 @@ def test_video_no_speech_detected(client, monkeypatch, patch_pipeline):
     assert status_r.json()["status"] == "failed: no_speech_detected"
 
 
+@pytest.fixture
+def patch_youtube_media(monkeypatch):
+    from video import media
+
+    monkeypatch.setattr(
+        media,
+        "fetch_youtube_info",
+        lambda url: {
+            "duration_seconds": 5.0,
+            "title": "Test YouTube Speech",
+            "uploader": "Test Channel",
+            "youtube_video_id": "dQw4w9WgXcQ",
+        },
+    )
+
+    def fake_download_youtube_audio(url, out_path):
+        with open(out_path, "wb") as f:
+            f.write(b"fake-audio")
+
+    monkeypatch.setattr(media, "download_youtube_audio", fake_download_youtube_audio)
+    monkeypatch.setattr(
+        media, "transcribe", lambda audio_path: {"text": FULL_TRANSCRIPT_TEXT, "segments": FAKE_SEGMENTS}
+    )
+
+
+def test_youtube_rejects_non_youtube_url(client):
+    r = client.post("/api/video/from-url", json={"url": "https://example.com/some-video"})
+    assert r.status_code == 400
+
+
+def test_youtube_rejects_too_long_duration(client, monkeypatch):
+    from config import settings
+    from video import media
+
+    monkeypatch.setattr(settings, "video_max_duration_seconds", 60)
+    monkeypatch.setattr(
+        media,
+        "fetch_youtube_info",
+        lambda url: {"duration_seconds": 999, "title": "Long video", "uploader": "x", "youtube_video_id": "abc123"},
+    )
+    r = client.post("/api/video/from-url", json={"url": "https://www.youtube.com/watch?v=abc123"})
+    assert r.status_code == 400
+
+
+def test_youtube_happy_path(client, patch_youtube_media, patch_pipeline):
+    r = client.post(
+        "/api/video/from-url",
+        json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "speaker": "Jane Smith"},
+    )
+    assert r.status_code == 200
+    video_id = r.json()["id"]
+
+    # TestClient runs BackgroundTasks synchronously in-process, so processing
+    # has already finished by the time the response above returned.
+    status_r = client.get(f"/api/video/{video_id}/status")
+    assert status_r.json()["status"] == "complete"
+
+    get_r = client.get(f"/api/video/{video_id}")
+    assert get_r.status_code == 200
+    body = get_r.json()
+    assert body["source_type"] == "video"
+    # The initial YouTube-fetched title is just a placeholder while
+    # processing - pipeline.run()'s own generated title wins once complete,
+    # exactly like the upload flow.
+    assert body["title"] == "Test Analysis Title"
+    assert body["video"]["source"] == "youtube"
+    assert body["video"]["youtube_video_id"] == "dQw4w9WgXcQ"
+    assert len(body["claims"]) == 1
+    assert body["claims"][0]["start_ms"] == 0
+    assert body["claims"][0]["end_ms"] == 3000
+
+    # No file is ever downloaded/stored for a youtube-sourced analysis.
+    file_r = client.get(f"/api/video/{video_id}/file")
+    assert file_r.status_code == 404
+
+
 def test_video_cross_user_access_is_404(client, patch_media, patch_pipeline):
     owner_token = _register_and_login(client, "video-owner2@example.com")
     other_token = _register_and_login(client, "video-other2@example.com")

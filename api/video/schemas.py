@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
 
 from models import Transcript, Video
@@ -7,6 +9,12 @@ from models import Transcript, Video
 
 class VideoUploadResponse(BaseModel):
     id: str
+
+
+class VideoFromUrlRequest(BaseModel):
+    url: str
+    speaker: str | None = None
+    speech_date: date | None = None
 
 
 class VideoStatusResponse(BaseModel):
@@ -18,10 +26,17 @@ class VideoOut(BaseModel):
 
     filename: str
     duration_seconds: float | None = None
+    source: str = "upload"
+    youtube_video_id: str | None = None
 
     @classmethod
     def from_orm_video(cls, video: Video) -> "VideoOut":
-        return cls(filename=video.filename, duration_seconds=video.duration_seconds)
+        return cls(
+            filename=video.filename,
+            duration_seconds=video.duration_seconds,
+            source=video.source,
+            youtube_video_id=video.youtube_video_id,
+        )
 
 
 class TranscriptSegmentOut(BaseModel):

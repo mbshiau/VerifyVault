@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createAnalysis, uploadVideo } from "@/lib/api";
+import { createAnalysis, submitYoutubeUrl, uploadVideo } from "@/lib/api";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".m4v", ".webm"];
 const VIDEO_ACCEPT = VIDEO_EXTENSIONS.join(",");
 const MAX_VIDEO_MB = 500;
+const YOUTUBE_URL_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i;
 
-type Mode = "text" | "video";
+type Mode = "text" | "video" | "youtube";
 
 export default function Home() {
   const router = useRouter();
@@ -22,6 +23,8 @@ export default function Home() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const [youtubeUrl, setYoutubeUrl] = useState("");
 
   function pickVideoFile(file: File | null) {
     setError(null);
@@ -65,6 +68,22 @@ export default function Home() {
       return;
     }
 
+    if (mode === "youtube") {
+      if (!youtubeUrl.trim()) return;
+      setLoading(true);
+      try {
+        const { id } = await submitYoutubeUrl(youtubeUrl.trim(), {
+          speaker: speaker.trim() || undefined,
+          speechDate: speechDate || undefined,
+        });
+        router.push(`/analysis/${id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed");
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const a = await createAnalysis(text, speaker.trim(), speechDate || undefined);
@@ -75,7 +94,12 @@ export default function Home() {
     }
   }
 
-  const canSubmit = mode === "text" ? text.length >= 20 : videoFile !== null;
+  const canSubmit =
+    mode === "text"
+      ? text.length >= 20
+      : mode === "video"
+        ? videoFile !== null
+        : YOUTUBE_URL_RE.test(youtubeUrl.trim());
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
@@ -113,6 +137,15 @@ export default function Home() {
               }`}
             >
               Video
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("youtube")}
+              className={`rounded-md px-4 py-1.5 transition ${
+                mode === "youtube" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              YouTube link
             </button>
           </div>
 
@@ -217,6 +250,23 @@ export default function Home() {
                 </div>
               </div>
             )}
+
+            {mode === "youtube" && (
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">YouTube video URL</span>
+                <input
+                  type="url"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+                />
+                <p className="text-xs text-slate-500">
+                  Only the audio is used for transcription - the video itself is played back directly from YouTube,
+                  never downloaded or re-hosted.
+                </p>
+              </label>
+            )}
           </div>
 
           <div className="sticky bottom-4 z-20 mt-6 border-t border-slate-200 bg-white/90 pt-4">
@@ -230,10 +280,14 @@ export default function Home() {
                 {loading
                   ? mode === "video"
                     ? "Uploading..."
-                    : "Analyzing..."
+                    : mode === "youtube"
+                      ? "Fetching..."
+                      : "Analyzing..."
                   : mode === "video"
                     ? "Upload & analyze"
-                    : "Analyze"}
+                    : mode === "youtube"
+                      ? "Fetch & analyze"
+                      : "Analyze"}
               </button>
             </div>
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -248,6 +302,7 @@ export default function Home() {
               <p>• Press releases, newsletters, and policy statements</p>
               <p>• Social posts or short public remarks</p>
               <p>• Video of speeches, interviews, debates, or press conferences</p>
+              <p>• YouTube links to any of the above</p>
             </div>
           </section>
 

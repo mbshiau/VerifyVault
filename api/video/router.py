@@ -16,7 +16,7 @@ from config import settings
 from db import get_db
 from models import Analysis, User
 from video import service
-from video.schemas import VideoStatusResponse, VideoUploadResponse
+from video.schemas import VideoFromUrlRequest, VideoStatusResponse, VideoUploadResponse
 
 router = APIRouter(prefix="/api/video", tags=["video"])
 
@@ -87,6 +87,30 @@ async def upload_video(
     return VideoUploadResponse(id=str(row.id))
 
 
+@router.post("/from-url", response_model=VideoUploadResponse)
+def create_video_from_url(
+    payload: VideoFromUrlRequest,
+    tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+):
+    analysis_id = uuid.uuid4()
+    try:
+        row = service.create_youtube_analysis(
+            db,
+            analysis_id=analysis_id,
+            url=payload.url.strip(),
+            speaker=(payload.speaker or "").strip() or None,
+            speech_date=payload.speech_date,
+            user=user,
+        )
+    except service.VideoValidationError as e:
+        raise HTTPException(400, str(e))
+
+    tasks.add_task(service.run_video_pipeline_task, row.id)
+    return VideoUploadResponse(id=str(row.id))
+
+
 @router.get("/{analysis_id}/status", response_model=VideoStatusResponse)
 def get_video_status(
     analysis_id: UUID, db: Session = Depends(get_db), user: User | None = Depends(get_current_user_optional)
@@ -123,7 +147,12 @@ def get_video_file(analysis_id: UUID, request: Request, db: Session = Depends(ge
     remains strictly owner-protected on every other endpoint.
     """
     row = db.get(Analysis, analysis_id)
-    if row is None or row.video is None or not os.path.exists(row.video.storage_path):
+    if (
+        row is None
+        or row.video is None
+        or row.video.storage_path is None
+        or not os.path.exists(row.video.storage_path)
+    ):
         raise HTTPException(404, "not found")
 
     path = row.video.storage_path

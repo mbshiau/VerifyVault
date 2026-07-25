@@ -158,7 +158,13 @@ class Video(Base):
     content_type: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
-    storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    # Null for youtube-sourced rows - only an uploaded file is ever persisted
+    # to disk; a YouTube video is never downloaded/re-hosted, only its audio
+    # is briefly fetched for transcription (see video/media.py).
+    storage_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="upload")
+    youtube_video_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    youtube_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     analysis: Mapped["Analysis"] = relationship(back_populates="video")
