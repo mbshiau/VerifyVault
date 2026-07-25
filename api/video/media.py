@@ -67,13 +67,22 @@ def fetch_url_video_info(url: str) -> dict:
     every site yt-dlp supports (YouTube, Twitter/X, ...) - nothing here is
     platform-specific.
     """
-    ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    # Use a browser-like User-Agent to improve success on platforms like Instagram
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+        },
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except yt_dlp.utils.DownloadError as e:
+        # Surface the underlying error for diagnostics (still user-friendly)
         raise MediaError(
-            "Could not read this video - it may be private, deleted, age-restricted, or region-locked."
+            f"Could not read this video - it may be private, deleted, age-restricted, or region-locked. (yt-dlp: {e})"
         ) from e
     if info is None:
         raise MediaError("Could not read this video.")
@@ -100,11 +109,15 @@ def download_remote_audio(url: str, out_path: str) -> None:
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         raw_template = str(Path(tmp_dir) / "audio.%(ext)s")
+        # Use a browser-like User-Agent to improve success on platforms like Instagram
         ydl_opts = {
             "quiet": True,
             "no_warnings": True,
             "format": "bestaudio/best",
             "outtmpl": raw_template,
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+            },
         }
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

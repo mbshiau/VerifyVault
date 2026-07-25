@@ -15,6 +15,7 @@ from video import media
 
 _YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "music.youtube.com"}
 _TWITTER_HOSTS = {"twitter.com", "www.twitter.com", "mobile.twitter.com", "x.com", "www.x.com"}
+_INSTAGRAM_HOSTS = {"instagram.com", "www.instagram.com", "m.instagram.com"}
 
 
 class VideoValidationError(RuntimeError):
@@ -24,8 +25,8 @@ class VideoValidationError(RuntimeError):
 
 
 def detect_url_source(url: str) -> str | None:
-    """Returns "youtube"/"twitter" for a recognized host, else None. Adding a
-    new URL-based platform is just adding another host set + branch here -
+    """Returns platform string for a recognized host (youtube/twitter/instagram), else None.
+    Adding a new URL-based platform is just adding another host set + branch here -
     everything downstream (media.py, run_video_pipeline_task) is already
     generic over "any non-upload source".
     """
@@ -34,6 +35,8 @@ def detect_url_source(url: str) -> str | None:
         return "youtube"
     if host in _TWITTER_HOSTS:
         return "twitter"
+    if host in _INSTAGRAM_HOSTS:
+        return "instagram"
     return None
 
 
@@ -94,12 +97,18 @@ def create_url_analysis(
 ) -> Analysis:
     source = detect_url_source(url)
     if source is None:
-        raise VideoValidationError("Please provide a YouTube or X/Twitter video link.")
+        raise VideoValidationError("Please provide a YouTube, X/Twitter, or Instagram video link.")
 
     try:
         info = media.fetch_url_video_info(url)
     except media.MediaError as e:
-        raise VideoValidationError(str(e))
+        msg = str(e)
+        # Common Instagram-specific failure: requires authentication/cookies
+        if "Instagram sent an empty media response" in msg or "[Instagram]" in msg:
+            raise VideoValidationError(
+                "Instagram content often requires a logged-in session. Provide a public Instagram reel accessible without login or use YouTube/X."
+            )
+        raise VideoValidationError(msg)
 
     max_duration = settings.video_max_duration_seconds
     if info["duration_seconds"] > max_duration:
