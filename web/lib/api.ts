@@ -68,6 +68,10 @@ export type Analysis = {
   updated_at: string;
   video?: VideoInfo | null;
   transcript?: Transcript | null;
+  visibility: "private" | "unlisted" | "public";
+  share_token?: string | null;
+  published_at?: string | null;
+  view_count?: number;
 };
 
 export type AnalysisListItem = {
@@ -79,12 +83,61 @@ export type AnalysisListItem = {
   claim_count: number;
   created_at: string;
   updated_at: string;
+  visibility: "private" | "unlisted" | "public";
+  share_token?: string | null;
+};
+
+export type SharedAnalysis = {
+  id: string;
+  title: string;
+  source_type: string;
+  text: string;
+  speaker?: string | null;
+  speech_date?: string | null;
+  summary: string;
+  claims: Claim[];
+  topics: string[];
+  entities: Entity[];
+  entity_details?: EntityDetail[];
+  created_at: string;
+  view_count: number;
+  video?: VideoInfo | null;
+  transcript?: Transcript | null;
 };
 
 export type SelectedClaimAnalysis = {
   is_claim: boolean;
   reason: string;
   claim: Claim | null;
+};
+
+export type PublicAnalysisListItem = {
+  id: string;
+  title: string;
+  source_type: string;
+  speaker?: string | null;
+  author?: string | null;
+  claim_count: number;
+  view_count: number;
+  bookmark_count: number;
+  topics: string[];
+  created_at: string;
+  published_at?: string | null;
+};
+
+export type PublicAnalysisDetail = SharedAnalysis & {
+  author?: string | null;
+  bookmark_count: number;
+  bookmarked: boolean;
+};
+
+export type Profile = {
+  username: string;
+  bio: string;
+  avatar_url?: string | null;
+  joined_at: string;
+  public_analysis_count: number;
+  analyses: PublicAnalysisListItem[];
 };
 
 async function readErrorMessage(r: Response): Promise<string> {
@@ -152,6 +205,95 @@ export async function renameAnalysis(id: string, title: string): Promise<Analysi
 export async function deleteAnalysis(id: string): Promise<void> {
   const r = await apiFetch(`/api/analysis/${id}`, { method: "DELETE" });
   if (!r.ok && r.status !== 204) throw new Error(await readErrorMessage(r));
+}
+
+export async function updateVisibility(
+  id: string,
+  visibility: "private" | "unlisted" | "public"
+): Promise<Analysis> {
+  const r = await apiFetch(`/api/analysis/${id}/visibility`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ visibility }),
+  });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function shareAnalysis(id: string): Promise<Analysis> {
+  const r = await apiFetch(`/api/analysis/${id}/share`, { method: "POST" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+// Public, unauthenticated read - deliberately calls fetch directly rather
+// than apiFetch, since a share link must work with no access token at all
+// and should never trigger a refresh-cookie round trip.
+export async function getSharedAnalysis(token: string): Promise<SharedAnalysis> {
+  const r = await fetch(`${API_URL}/share/${token}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function listPublicAnalyses(params: {
+  q?: string;
+  topic?: string;
+  sort?: "recent" | "trending";
+} = {}): Promise<PublicAnalysisListItem[]> {
+  const search = new URLSearchParams();
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.topic) search.set("topic", params.topic);
+  if (params.sort) search.set("sort", params.sort);
+  const query = search.toString() ? `?${search.toString()}` : "";
+  const r = await apiFetch(`/api/public${query}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function getPublicAnalysis(id: string): Promise<PublicAnalysisDetail> {
+  const r = await apiFetch(`/api/public/${id}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function getProfile(username: string): Promise<Profile> {
+  const r = await apiFetch(`/api/profile/${encodeURIComponent(username)}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function updateProfile(payload: {
+  username?: string;
+  bio?: string;
+  avatar_url?: string;
+  profile_visibility?: "public" | "private";
+}): Promise<void> {
+  const r = await apiFetch(`/api/profile`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+}
+
+export async function addBookmark(analysisId: string): Promise<void> {
+  const r = await apiFetch(`/api/bookmarks`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ analysis_id: analysisId }),
+  });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+}
+
+export async function removeBookmark(analysisId: string): Promise<void> {
+  const r = await apiFetch(`/api/bookmarks/${analysisId}`, { method: "DELETE" });
+  if (!r.ok && r.status !== 204) throw new Error(await readErrorMessage(r));
+}
+
+export async function listBookmarks(): Promise<PublicAnalysisListItem[]> {
+  const r = await apiFetch(`/api/bookmarks`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
 }
 
 export async function claimAnalysisOwnership(id: string): Promise<Analysis> {

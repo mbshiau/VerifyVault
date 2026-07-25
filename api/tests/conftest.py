@@ -65,7 +65,7 @@ def _clean_tables():
     with engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE TABLE refresh_tokens, sources, claims, transcripts, videos, analyses, users "
+                "TRUNCATE TABLE refresh_tokens, bookmarks, sources, claims, transcripts, videos, analyses, users "
                 "RESTART IDENTITY CASCADE"
             )
         )

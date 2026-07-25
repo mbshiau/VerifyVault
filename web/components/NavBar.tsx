@@ -20,13 +20,20 @@ export function NavBar() {
           VerifyVault
         </Link>
         <div className="flex items-center gap-4 text-sm">
-          {!loading && user && (
-            <Link href="/dashboard" className="text-neutral-600 hover:text-neutral-900">
-              My Analyses
-            </Link>
-          )}
+          <Link href="/library" className="text-neutral-600 hover:text-neutral-900">
+            Library
+          </Link>
           {!loading && user && (
             <>
+              <Link href="/dashboard" className="text-neutral-600 hover:text-neutral-900">
+                My Analyses
+              </Link>
+              <Link href="/bookmarks" className="text-neutral-600 hover:text-neutral-900">
+                My Library
+              </Link>
+              <Link href="/settings" className="text-neutral-600 hover:text-neutral-900">
+                Settings
+              </Link>
               <span className="text-neutral-400">{user.email}</span>
               <button type="button" onClick={onLogout} className="text-neutral-600 hover:text-neutral-900">
                 Log out

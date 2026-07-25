@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
@@ -31,12 +32,20 @@ class User(Base):
     auth_provider: Mapped[str] = mapped_column(String(20), nullable=False, default="password")
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Public-profile fields (V3) - username is nullable because it doesn't
+    # exist until a user sets one in settings; a profile is only reachable
+    # (GET /api/profile/{username}) once it's set.
+    username: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)
+    bio: Mapped[str] = mapped_column(String(280), nullable=False, default="")
+    avatar_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    profile_visibility: Mapped[str] = mapped_column(String(10), nullable=False, default="public")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     analyses: Mapped[list["Analysis"]] = relationship(back_populates="user")
+    bookmarks: Mapped[list["Bookmark"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class RefreshToken(Base):
@@ -69,6 +78,15 @@ class Analysis(Base):
     entities: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     entity_details: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    # "private" (default, owner-only), "unlisted" (accessible only via
+    # share_token), "public" (also listed/searchable in the future library).
+    visibility: Mapped[str] = mapped_column(String(10), nullable=False, default="private")
+    share_token: Mapped[str | None] = mapped_column(String(48), unique=True, nullable=True)
+    # Set the first time visibility transitions to "public"; left untouched
+    # on later private<->public/unlisted toggles so it reflects most-recent
+    # publish time rather than being cleared.
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -87,6 +105,7 @@ class Analysis(Base):
     )
     video: Mapped["Video | None"] = relationship(back_populates="analysis", cascade="all, delete-orphan")
     transcript: Mapped["Transcript | None"] = relationship(back_populates="analysis", cascade="all, delete-orphan")
+    bookmarks: Mapped[list["Bookmark"]] = relationship(back_populates="analysis", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_analyses_user_id_created_at", "user_id", "created_at"),
@@ -190,3 +209,21 @@ class Transcript(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     analysis: Mapped["Analysis"] = relationship(back_populates="transcript")
+
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="bookmarks")
+    analysis: Mapped["Analysis"] = relationship(back_populates="bookmarks")
+
+    __table_args__ = (UniqueConstraint("user_id", "analysis_id", name="uq_bookmarks_user_analysis"),)

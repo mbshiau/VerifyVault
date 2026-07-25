@@ -1,3 +1,5 @@
+import secrets
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -9,6 +11,8 @@ import pipeline
 from analysis.schemas import AnalyzeRequest
 from db import SessionLocal
 from models import Analysis, Claim, Source, User
+
+VISIBILITY_LEVELS = ("private", "unlisted", "public")
 
 
 def create_analysis(db: Session, payload: AnalyzeRequest, user: User | None) -> Analysis:
@@ -132,6 +136,54 @@ def add_more_sources(db: Session, claim: Claim, speaker: str | None, limit: int 
     db.commit()
     db.refresh(claim)
     return claim
+
+
+def _new_share_token() -> str:
+    return secrets.token_urlsafe(24)
+
+
+def ensure_share_token(db: Session, analysis: Analysis) -> Analysis:
+    """Idempotently assigns a share token. The token itself grants no access
+    on its own - GET /share/{token} still enforces visibility != "private" -
+    it just needs to exist before a link can be handed out.
+    """
+    if analysis.share_token is None:
+        analysis.share_token = _new_share_token()
+        db.commit()
+        db.refresh(analysis)
+    return analysis
+
+
+def set_visibility(db: Session, analysis: Analysis, visibility: str) -> Analysis:
+    if visibility not in VISIBILITY_LEVELS:
+        raise HTTPException(422, f"visibility must be one of {VISIBILITY_LEVELS}")
+    if visibility != "private" and analysis.share_token is None:
+        analysis.share_token = _new_share_token()
+    if visibility == "public" and analysis.visibility != "public":
+        analysis.published_at = datetime.now(timezone.utc)
+    analysis.visibility = visibility
+    db.commit()
+    db.refresh(analysis)
+    return analysis
+
+
+def get_analysis_by_share_token(db: Session, token: str) -> Analysis:
+    """Public, unauthenticated lookup for GET /share/{token}. 404 (not 403)
+    for both "no such token" and "token exists but analysis is private", so
+    a request never reveals whether a private analysis exists behind a
+    guessed/stale token.
+    """
+    row = db.execute(
+        select(Analysis)
+        .where(Analysis.share_token == token)
+        .options(selectinload(Analysis.claims).selectinload(Claim.sources))
+    ).scalar_one_or_none()
+    if row is None or row.visibility == "private":
+        raise HTTPException(404, "not found")
+    row.view_count += 1
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 def claim_ownership(db: Session, analysis: Analysis, user: User) -> Analysis:

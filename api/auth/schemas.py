@@ -25,6 +25,10 @@ class UserOut(BaseModel):
     profile_picture_url: str | None = None
     auth_provider: str
     created_at: datetime
+    username: str | None = None
+    bio: str = ""
+    avatar_url: str | None = None
+    profile_visibility: str = "public"
 
 
 class TokenResponse(BaseModel):

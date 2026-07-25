@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from analysis.router import router as analysis_router
+from analysis.router import share_router
 from auth.router import router as auth_router
 from config import settings
+from library.router import router as library_router
 from schemas import CleanTextRequest, CleanTextResponse
 from video.router import router as video_router
 
@@ -23,6 +25,8 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 
 app.include_router(auth_router)
 app.include_router(analysis_router)
+app.include_router(share_router)
+app.include_router(library_router)
 app.include_router(video_router)
 
 
