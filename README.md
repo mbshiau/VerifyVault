@@ -1,6 +1,6 @@
 # VerifyVault
 
-Political Communication Analyzer — paste text, get structured claims, entities, topics, and sourced evidence.
+Political Communication Analyzer: paste text, get structured claims, entities, topics, and sourced evidence.
 
 ## Structure
 
