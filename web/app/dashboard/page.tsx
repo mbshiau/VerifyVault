@@ -67,11 +67,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12">
+    <main className="mx-auto max-w-4xl px-6 py-8">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">My Analyses</h1>
-          <p className="mt-1 text-xs text-stone-400 micro-text">Saved and in-progress analyses</p>
+          <p className="mt-0 text-xs text-stone-400 micro-text">Saved and in-progress analyses</p>
         </div>
         <Link href="/" className="rounded-md bg-blueberry-600 px-4 py-2 text-sm font-medium text-white hover:bg-blueberry-700">
           New Analysis
@@ -82,7 +82,7 @@ export default function DashboardPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by title..."
-        className="mt-6 w-full rounded-md border divider-light bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
+        className="mt-4 w-full rounded-md border divider-light bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
       />
 
       {isLoading && <p className="mt-8 text-sm text-stone-600">Loading…</p>}
@@ -96,7 +96,7 @@ export default function DashboardPage() {
 
       <ul className="mt-6 divide-y divider-light overflow-hidden rounded-lg border divider-light bg-white">
         {filtered.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
+          <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
             <div className="min-w-0 flex-1">
               {renamingId === item.id ? (
                 <input
@@ -111,23 +111,30 @@ export default function DashboardPage() {
                   className="w-full rounded border divider-light px-2 py-1 text-sm text-stone-900"
                 />
               ) : (
-                <Link href={`/analysis/${item.id}`} className="truncate text-sm font-medium hover:underline">
+                <Link href={`/analysis/${item.id}`} className="truncate text-sm font-semibold text-blueberry-700 hover:underline">
                   {item.title}
                 </Link>
               )}
               <p className="mt-0.5 text-xs text-stone-500">
-                {item.claim_count} claim{item.claim_count === 1 ? "" : "s"} · {item.source_type} · Updated{" "}
-                {formatDate(item.updated_at)}
-                {item.status !== "complete" && <> · {item.status}</>}
+                <span className="text-black">{item.claim_count} claim{item.claim_count === 1 ? "" : "s"}</span>
                 {" · "}
-                {VISIBILITY_BADGE[item.visibility]}
+                <span className={item.source_type === "video" || item.source_type === "text" ? "text-blueberry-600 font-medium" : "text-black"}>
+                  {item.source_type}
+                </span>
+                {" · "}
+                <span className="text-black">Updated {formatDate(item.updated_at)}</span>
+                {item.status !== "complete" && <> {" · "}<span className="text-black">{item.status}</span></>}
+                {" · "}
+                <span className={item.visibility === "private" ? "text-blueberry-600 font-medium" : "text-black"}>
+                  {VISIBILITY_BADGE[item.visibility]}
+                </span>
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
               <button
                 type="button"
                 onClick={() => setSharingItem(item)}
-                className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                className="rounded-md border border-blueberry-300 px-2.5 py-1 text-xs font-medium text-blueberry-700 hover:bg-blueberry-50"
               >
                 Share
               </button>
@@ -139,7 +146,7 @@ export default function DashboardPage() {
                     visibility: item.visibility === "public" ? "private" : "public",
                   })
                 }
-                className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                className="rounded-md border border-blueberry-600 px-2.5 py-1 text-xs font-medium text-blueberry-600 hover:bg-blueberry-100"
               >
                 {item.visibility === "public" ? "Unpublish" : "Publish"}
               </button>

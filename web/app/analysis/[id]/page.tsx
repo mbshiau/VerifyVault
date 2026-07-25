@@ -24,6 +24,8 @@ import { YouTubePlayer } from "./YouTubePlayer";
 import { TweetEmbed } from "./TweetEmbed";
 import { TranscriptView } from "./TranscriptView";
 import { VideoProcessingStepper } from "./VideoProcessingStepper";
+import { ShareDialog } from "@/components/ShareDialog";
+import { renameAnalysis } from "@/lib/api";
 
 const VIDEO_IN_PROGRESS_STATUSES: readonly string[] = VIDEO_PROCESSING_STATUSES;
 
@@ -34,6 +36,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [selectedClaimIndex, setSelectedClaimIndex] = useState(0);
+  const [sharingOpen, setSharingOpen] = useState(false);
   const [expandedClaimIndex, setExpandedClaimIndex] = useState<number | null>(0);
   const [annotationMode, setAnnotationMode] = useState(false);
   const [selectedText, setSelectedText] = useState("");
@@ -286,18 +289,46 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setAnnotationMode((v) => !v)}
-          title={annotationMode ? "Exit annotation mode" : "Add annotations"}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-            annotationMode
-              ? "bg-amber-300 text-slate-900 hover:bg-amber-200"
-              : "bg-blueberry-600 text-white hover:bg-blueberry-700"
-          }`}
-        >
-          {annotationMode ? "Annotation on" : "Annotate"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setSharingOpen(true)}
+            className="rounded-md border border-blueberry-300 px-3 py-1 text-sm font-medium text-blueberry-700 hover:bg-blueberry-50"
+          >
+            Share
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              const newTitle = window.prompt("Rename analysis", data.title);
+              if (newTitle && newTitle.trim() && newTitle.trim() !== data.title) {
+                try {
+                  const updated = await renameAnalysis(data.id, newTitle.trim());
+                  setData((prev) => (prev ? { ...prev, title: updated.title } : prev));
+                } catch (e) {
+                  alert(e instanceof Error ? e.message : "Failed to rename");
+                }
+              }
+            }}
+            className="rounded-md border border-blueberry-300 px-3 py-1 text-sm font-medium text-blueberry-700 hover:bg-blueberry-50"
+          >
+            Rename
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAnnotationMode((v) => !v)}
+            title={annotationMode ? "Exit annotation mode" : "Add annotations"}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              annotationMode
+                ? "bg-amber-300 text-slate-900 hover:bg-amber-200"
+                : "bg-blueberry-600 text-white hover:bg-blueberry-700"
+            }`}
+          >
+            {annotationMode ? "Annotation on" : "Annotate"}
+          </button>
+        </div>
       </div>
 
       {annotationMode && (
@@ -331,14 +362,14 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                 <h2 className="text-lg font-semibold text-slate-900">{isVideo ? "Transcript" : "Original text"}</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {isVideo
-                    ? "Click a timestamp to jump to that point in the video."
+                    ? "Click a timestamp to jump to that point in the video, or select transcript text to analyze a claim."
                     : "Click a highlighted claim to inspect it, or select new text to analyze it."}
                 </p>
               </div>
               <div
                 className="relative max-h-[78vh] overflow-y-auto rounded-xl bg-slate-50 p-5"
                 ref={textPanelRef}
-                onMouseUp={isVideo ? undefined : handleSelectionMouseUp}
+                onMouseUp={handleSelectionMouseUp}
               >
                 {isVideo ? (
                   <TranscriptView
@@ -357,7 +388,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                   />
                 )}
 
-                {!isVideo && selectedText && selectionRect && (
+                {selectedText && selectionRect && (
                   <div
                     className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80 ${
                       selectionRect.isBelow ? "translate-y-[8px]" : "-translate-y-[calc(100%+8px)]"
@@ -558,6 +589,12 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           )}
         </AnnotationLayer>
       )}
+
+      <ShareDialog
+        open={sharingOpen}
+        analysis={{ id: data.id, visibility: data.visibility, share_token: data.share_token }}
+        onClose={() => setSharingOpen(false)}
+      />
 
       <ConfirmDialog
         open={duplicateClaimIndex !== null}

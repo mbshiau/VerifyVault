@@ -10,7 +10,7 @@ const MAX_VIDEO_MB = 500;
 const SUPPORTED_VIDEO_URL_RE =
   /^https?:\/\/(www\.|m\.|mobile\.)?(youtube\.com|youtu\.be|twitter\.com|x\.com)\//i;
 
-type Mode = "text" | "video" | "url";
+type Mode = "text" | "video";
 
 export default function Home() {
   const router = useRouter();
@@ -26,6 +26,7 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoMode, setVideoMode] = useState<"upload" | "link">("upload");
 
   function pickVideoFile(file: File | null) {
     setError(null);
@@ -98,7 +99,7 @@ export default function Home() {
   const canSubmit =
     mode === "text"
       ? text.length >= 20
-      : mode === "video"
+      : videoMode === "upload"
         ? videoFile !== null
         : SUPPORTED_VIDEO_URL_RE.test(videoUrl.trim());
 
@@ -139,15 +140,6 @@ export default function Home() {
               }`}
             >
               Video
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("url")}
-              className={`rounded-sm px-4 py-1.5 transition ${
-                mode === "url" ? "bg-blueberry-600 text-white" : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              Video link
             </button>
           </div>
 
@@ -190,69 +182,98 @@ export default function Home() {
                 />
               </label>
             ) : (
-              <div className="space-y-2">
-                <span className="block text-sm font-medium text-black">Video to analyze</span>
-                <p className="text-xs text-stone-400">MP4, MOV, M4V, WebM · Up to 500MB · Up to 2 hours</p>
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragActive(true);
-                  }}
-                  onDragLeave={() => setDragActive(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragActive(false);
-                    pickVideoFile(e.dataTransfer.files?.[0] ?? null);
-                  }}
-                  className={`flex min-h-[22rem] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition ${
-                    dragActive ? "border-blueberry-600 bg-blueberry-50" : "border-divider-light bg-stone-50"
-                  }`}
-                >
-                  <input
-                    id="video-file-input"
-                    type="file"
-                    accept={VIDEO_ACCEPT}
-                    className="hidden"
-                    onChange={(e) => pickVideoFile(e.target.files?.[0] ?? null)}
-                  />
-                  {videoFile ? (
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-black">{videoFile.name}</p>
-                      <p className="text-xs text-stone-600">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
-                      {!loading && (
-                        <button
-                          type="button"
-                          onClick={() => pickVideoFile(null)}
-                          className="text-xs font-medium text-stone-500 underline hover:text-stone-800"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium text-stone-700">Drag and drop a video, or</p>
-                      <label
-                        htmlFor="video-file-input"
-                        className="mt-3 cursor-pointer rounded-md bg-blueberry-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blueberry-700"
-                      >
-                        Choose file
-                      </label>
-                    </>
-                  )}
-
-                  {loading && (
-                    <div className="mt-5 w-full max-w-xs">
-                      <div className="progress-premium">
-                        <div
-                          className="progress-premium-fill"
-                          style={{ width: `${Math.round(uploadProgress * 100)}%` }}
-                        />
-                      </div>
-                      <p className="mt-2 text-xs text-stone-600 micro-text-muted">Uploading… {Math.round(uploadProgress * 100)}%</p>
-                    </div>
-                  )}
+              <div className="space-y-4">
+                <div className="inline-flex rounded-md bg-stone-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setVideoMode("upload")}
+                    className={`rounded-sm px-3 py-1 text-sm font-medium ${videoMode === "upload" ? "bg-blueberry-600 text-white" : "text-stone-600 hover:text-stone-900"}`}
+                  >
+                    Upload
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoMode("link")}
+                    className={`rounded-sm px-3 py-1 text-sm font-medium ${videoMode === "link" ? "bg-blueberry-600 text-white" : "text-stone-600 hover:text-stone-900"}`}
+                  >
+                    Link
+                  </button>
                 </div>
+
+                {videoMode === "upload" ? (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragActive(true);
+                    }}
+                    onDragLeave={() => setDragActive(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragActive(false);
+                      pickVideoFile(e.dataTransfer.files?.[0] ?? null);
+                    }}
+                    className={`flex min-h-[14rem] flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition ${
+                      dragActive ? "border-blueberry-600 bg-blueberry-50" : "border-divider-light bg-stone-50"
+                    }`}
+                  >
+                    <input
+                      id="video-file-input"
+                      type="file"
+                      accept={VIDEO_ACCEPT}
+                      className="hidden"
+                      onChange={(e) => pickVideoFile(e.target.files?.[0] ?? null)}
+                    />
+                    {videoFile ? (
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium text-black">{videoFile.name}</p>
+                        <p className="text-xs text-stone-600">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                        {!loading && (
+                          <button
+                            type="button"
+                            onClick={() => pickVideoFile(null)}
+                            className="text-xs font-medium text-stone-500 underline hover:text-stone-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-stone-700">Drag and drop a video, or</p>
+                        <label
+                          htmlFor="video-file-input"
+                          className="mt-3 cursor-pointer rounded-md bg-blueberry-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blueberry-700"
+                        >
+                          Choose file
+                        </label>
+                      </>
+                    )}
+
+                    {loading && (
+                      <div className="mt-5 w-full max-w-xs">
+                        <div className="progress-premium">
+                          <div
+                            className="progress-premium-fill"
+                            style={{ width: `${Math.round(uploadProgress * 100)}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-stone-600 micro-text-muted">Uploading… {Math.round(uploadProgress * 100)}%</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <label className="block space-y-2">
+                    <span className="text-sm font-medium text-black">YouTube or X/Twitter video URL</span>
+                    <p className="text-xs text-stone-400">Audio is transcribed, video played from original source</p>
+                    <input
+                      type="url"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status/..."
+                      className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
+                    />
+                  </label>
+                )}
               </div>
             )}
 
@@ -281,15 +302,15 @@ export default function Home() {
               >
                 {loading
                   ? mode === "video"
-                    ? "Uploading..."
-                    : mode === "url"
-                      ? "Fetching..."
-                      : "Analyzing..."
+                    ? videoMode === "upload"
+                      ? "Uploading..."
+                      : "Fetching..."
+                    : "Analyzing..."
                   : mode === "video"
-                    ? "Upload & analyze"
-                    : mode === "url"
-                      ? "Fetch & analyze"
-                      : "Analyze"}
+                    ? videoMode === "upload"
+                      ? "Upload & analyze"
+                      : "Fetch & analyze"
+                    : "Analyze"}
               </button>
             </div>
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
