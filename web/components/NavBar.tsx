@@ -20,34 +20,22 @@ export function NavBar() {
           VerifyVault
         </Link>
         <div className="flex items-center gap-4 text-sm">
-<<<<<<< HEAD
-          {!loading && user && (
-            <Link href="/dashboard" className="text-stone-700 hover:text-black">
-              My Analyses
-            </Link>
-          )}
-          {!loading && user && (
-            <>
-              <span className="text-stone-500">{user.email}</span>
-              <button type="button" onClick={onLogout} className="text-stone-700 hover:text-black">
-=======
-          <Link href="/library" className="text-neutral-600 hover:text-neutral-900">
+          <Link href="/library" className="text-stone-700 hover:text-black">
             Library
           </Link>
           {!loading && user && (
             <>
-              <Link href="/dashboard" className="text-neutral-600 hover:text-neutral-900">
+              <Link href="/dashboard" className="text-stone-700 hover:text-black">
                 My Analyses
               </Link>
-              <Link href="/bookmarks" className="text-neutral-600 hover:text-neutral-900">
+              <Link href="/bookmarks" className="text-stone-700 hover:text-black">
                 My Library
               </Link>
-              <Link href="/settings" className="text-neutral-600 hover:text-neutral-900">
+              <Link href="/settings" className="text-stone-700 hover:text-black">
                 Settings
               </Link>
-              <span className="text-neutral-400">{user.email}</span>
-              <button type="button" onClick={onLogout} className="text-neutral-600 hover:text-neutral-900">
->>>>>>> 7c88e61e36cba2dda7750997aac76af84298086a
+              <span className="text-stone-500">{user.email}</span>
+              <button type="button" onClick={onLogout} className="text-stone-700 hover:text-black">
                 Log out
               </button>
             </>
@@ -57,7 +45,7 @@ export function NavBar() {
               <Link href="/login" className="text-stone-700 hover:text-black">
                 Sign in
               </Link>
-              <Link href="/signup" className="rounded-sm bg-brand-700 px-3 py-1.5 text-white">
+              <Link href="/signup" className="rounded-sm bg-blueberry-600 px-3 py-1.5 text-white hover:bg-blueberry-700">
                 Sign up
               </Link>
             </>
