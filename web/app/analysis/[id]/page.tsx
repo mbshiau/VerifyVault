@@ -2,7 +2,7 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Analysis, Claim, Source, analyzeSelectedClaim, deleteClaim, findMoreSources, getAnalysis } from "@/lib/api";
+import { Analysis, Claim, analyzeSelectedClaim, deleteClaim, findMoreSources, getAnalysis } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
 import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
@@ -10,11 +10,6 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ClaimHighlightedText } from "./ClaimHighlighter";
 import { AnnotationLayer } from "./AnnotationLayer";
 import { EntityDetails } from "./EntityDetails";
-
-type SnippetTarget = {
-  source: Source;
-  claimText: string;
-};
 
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -32,7 +27,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
   const [duplicateClaimIndex, setDuplicateClaimIndex] = useState<number | null>(null);
   const [copiedClaimIndex, setCopiedClaimIndex] = useState<number | null>(null);
-  const [snippetTarget, setSnippetTarget] = useState<SnippetTarget | null>(null);
   const [claimPendingDelete, setClaimPendingDelete] = useState<Claim | null>(null);
   const [deletingClaim, setDeletingClaim] = useState(false);
   const [deleteClaimError, setDeleteClaimError] = useState<string | null>(null);
@@ -453,15 +447,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                                         {source.relation && (
                                           <p className="mt-2 text-sm leading-6 text-slate-700">{source.relation}</p>
                                         )}
-                                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => setSnippetTarget({ source, claimText: claim.text })}
-                                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
-                                          >
-                                            View source snippet
-                                          </button>
-                                        </div>
                                       </article>
                                     );
                                   })}
@@ -539,72 +524,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         }}
         onConfirm={confirmDeleteClaim}
       />
-
-      {snippetTarget && (
-        <SourceSnippetModal
-          target={snippetTarget}
-          onClose={() => setSnippetTarget(null)}
-        />
-      )}
     </main>
-  );
-}
-
-function SourceSnippetModal({ target, onClose }: { target: SnippetTarget; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-950/20"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">View source snippet</p>
-            <h3 className="mt-2 text-lg font-semibold text-slate-900">{target.source.title || target.source.url}</h3>
-            <a
-              href={target.source.url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-block text-sm text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-slate-700"
-            >
-              {target.source.url}
-            </a>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-3 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr]">
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Claim</p>
-            <p className="mt-2 text-sm leading-7 text-slate-900">{target.claimText}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Snippet</p>
-            <p className="mt-2 text-sm leading-7 text-slate-700">
-              {target.source.snippet || target.source.summary || "No snippet available for this source."}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
