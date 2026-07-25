@@ -25,9 +25,19 @@ export type Claim = {
   confidence_explanation?: string;
   materiality?: number;
   source?: string;
+  start_ms?: number | null;
+  end_ms?: number | null;
   sources: Source[];
 };
 export type Entity = { name: string; type: string };
+export type VideoInfo = { filename: string; duration_seconds: number | null };
+export type TranscriptSegment = {
+  text: string;
+  start_ms: number;
+  end_ms: number;
+  confidence?: number | null;
+};
+export type Transcript = { segments: TranscriptSegment[] };
 export type EntityDetail = {
   name: string;
   type: string;
@@ -51,6 +61,8 @@ export type Analysis = {
   user_id?: string | null;
   created_at: string;
   updated_at: string;
+  video?: VideoInfo | null;
+  transcript?: Transcript | null;
 };
 
 export type AnalysisListItem = {
@@ -150,6 +162,65 @@ export async function deleteClaim(analysisId: string, claimId: string): Promise<
 
 export async function findMoreSources(analysisId: string, claimId: string): Promise<Claim> {
   const r = await apiFetch(`/api/analysis/${analysisId}/claims/${claimId}/more-sources`, { method: "POST" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+// Statuses a video analysis passes through before "complete"/"failed: ..." -
+// the frontend keeps polling and shows a step label while status is one of these.
+export const VIDEO_PROCESSING_STATUSES = [
+  "uploading",
+  "extracting_audio",
+  "transcribing",
+  "detecting_claims",
+] as const;
+
+export function getVideoFileUrl(id: string): string {
+  return `${API_URL}/api/video/${id}/file`;
+}
+
+// Uses XMLHttpRequest rather than apiFetch/fetch: `fetch` has no upload
+// progress event, so tracking the upload bar requires xhr.upload.onprogress.
+export function uploadVideo(
+  file: File,
+  opts: { speaker?: string; speechDate?: string; onProgress?: (fraction: number) => void } = {}
+): Promise<{ id: string }> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (opts.speaker) formData.append("speaker", opts.speaker);
+    if (opts.speechDate) formData.append("speech_date", opts.speechDate);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}/api/video/upload`);
+    xhr.withCredentials = true;
+    const token = getAccessToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && opts.onProgress) opts.onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+        return;
+      }
+      let message = xhr.statusText || "Upload failed";
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (typeof data?.detail === "string") message = data.detail;
+      } catch {
+        // fall through to status-text fallback
+      }
+      reject(new Error(message));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.send(formData);
+  });
+}
+
+export async function getVideoStatus(id: string): Promise<{ status: string }> {
+  const r = await apiFetch(`/api/video/${id}/status`, { cache: "no-store" });
   if (!r.ok) throw new Error(await readErrorMessage(r));
   return r.json();
 }

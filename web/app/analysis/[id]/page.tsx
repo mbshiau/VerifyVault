@@ -2,7 +2,16 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Analysis, Claim, analyzeSelectedClaim, deleteClaim, findMoreSources, getAnalysis } from "@/lib/api";
+import {
+  Analysis,
+  Claim,
+  VIDEO_PROCESSING_STATUSES,
+  analyzeSelectedClaim,
+  deleteClaim,
+  findMoreSources,
+  getAnalysis,
+  getVideoFileUrl,
+} from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
 import { SaveGuestAnalysisBanner } from "@/components/SaveGuestAnalysisBanner";
@@ -10,6 +19,11 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ClaimHighlightedText } from "./ClaimHighlighter";
 import { AnnotationLayer } from "./AnnotationLayer";
 import { EntityDetails } from "./EntityDetails";
+import { VideoPlayer, VideoPlayerHandle } from "./VideoPlayer";
+import { TranscriptView } from "./TranscriptView";
+import { VideoProcessingStepper } from "./VideoProcessingStepper";
+
+const VIDEO_IN_PROGRESS_STATUSES: readonly string[] = VIDEO_PROCESSING_STATUSES;
 
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -35,6 +49,9 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [moreSourcesError, setMoreSourcesError] = useState<string | null>(null);
   const markRefs = useRef<Map<number, HTMLElement>>(new Map());
   const textPanelRef = useRef<HTMLDivElement>(null);
+  const videoPlayerRef = useRef<VideoPlayerHandle>(null);
+  const segmentRefs = useRef<Map<number, HTMLElement>>(new Map());
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -43,7 +60,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         const a = await getAnalysis(id);
         if (stop) return;
         setData(a);
-        if (a.status === "processing") setTimeout(tick, 1500);
+        if (a.status === "processing" || VIDEO_IN_PROGRESS_STATUSES.includes(a.status)) setTimeout(tick, 1500);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed");
       }
@@ -82,6 +99,20 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       }
       return next;
     });
+
+    if (data?.source_type === "video") {
+      const claim = allClaims[index];
+      const startMs = claim?.start_ms;
+      if (startMs != null) {
+        videoPlayerRef.current?.seekTo(startMs);
+        const segments = data.transcript?.segments || [];
+        const segIndex = segments.findIndex((s) => startMs >= s.start_ms && startMs < s.end_ms);
+        if (segIndex >= 0) {
+          setActiveSegmentIndex(segIndex);
+          segmentRefs.current.get(segIndex)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }
   }
 
   function handleSelectionMouseUp() {
@@ -224,6 +255,9 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     );
 
   const processing = data.status === "processing";
+  const isVideo = data.source_type === "video";
+  const videoInProgress = isVideo && VIDEO_IN_PROGRESS_STATUSES.includes(data.status);
+  const videoFailed = isVideo && data.status.startsWith("failed");
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10 lg:py-12">
@@ -261,32 +295,52 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
       {!authLoading && !user && data.user_id === null && <SaveGuestAnalysisBanner analysisId={data.id} />}
 
-      {processing ? (
+      {isVideo && (videoInProgress || videoFailed) ? (
+        <div className="mt-8">
+          <VideoProcessingStepper status={data.status} />
+        </div>
+      ) : processing ? (
         <p className="mt-8 text-slate-500">Running pipeline…</p>
       ) : (
         <AnnotationLayer active={annotationMode}>
+          {isVideo && (
+            <div className="mt-8">
+              <VideoPlayer ref={videoPlayerRef} src={getVideoFileUrl(data.id)} />
+            </div>
+          )}
           <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
             <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
               <div className="mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Original text</h2>
+                <h2 className="text-lg font-semibold text-slate-900">{isVideo ? "Transcript" : "Original text"}</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Click a highlighted claim to inspect it, or select new text to analyze it.
+                  {isVideo
+                    ? "Click a timestamp to jump to that point in the video."
+                    : "Click a highlighted claim to inspect it, or select new text to analyze it."}
                 </p>
               </div>
               <div
                 className="relative max-h-[78vh] overflow-y-auto rounded-xl bg-slate-50 p-5"
                 ref={textPanelRef}
-                onMouseUp={handleSelectionMouseUp}
+                onMouseUp={isVideo ? undefined : handleSelectionMouseUp}
               >
-                <ClaimHighlightedText
-                  text={data.text}
-                  spans={spans}
-                  activeIndex={activeIndex}
-                  onSelect={selectClaim}
-                  markRefs={markRefs}
-                />
+                {isVideo ? (
+                  <TranscriptView
+                    segments={data.transcript?.segments || []}
+                    activeSegmentIndex={activeSegmentIndex}
+                    onSeek={(ms) => videoPlayerRef.current?.seekTo(ms)}
+                    segmentRefs={segmentRefs}
+                  />
+                ) : (
+                  <ClaimHighlightedText
+                    text={data.text}
+                    spans={spans}
+                    activeIndex={activeIndex}
+                    onSelect={selectClaim}
+                    markRefs={markRefs}
+                  />
+                )}
 
-                {selectedText && selectionRect && (
+                {!isVideo && selectedText && selectionRect && (
                   <div
                     className="absolute z-20 w-80 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80"
                     style={{ top: selectionRect.top, left: selectionRect.left }}

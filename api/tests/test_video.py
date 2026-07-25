@@ -1,0 +1,138 @@
+import pytest
+
+SEG1 = "The president said the sky is blue."
+SEG2 = "The economy grew ten percent last year."
+FULL_TRANSCRIPT_TEXT = SEG1 + " " + SEG2
+FAKE_SEGMENTS = [
+    {
+        "text": SEG1,
+        "start_ms": 0,
+        "end_ms": 3000,
+        "confidence": 0.9,
+        "start_char": 0,
+        "end_char": len(SEG1),
+    },
+    {
+        "text": SEG2,
+        "start_ms": 3000,
+        "end_ms": 6000,
+        "confidence": 0.8,
+        "start_char": len(SEG1) + 1,
+        "end_char": len(SEG1) + 1 + len(SEG2),
+    },
+]
+
+
+def _register_and_login(client, email="video-owner@example.com"):
+    r = client.post("/auth/register", json={"email": email, "password": "password123"})
+    assert r.status_code == 200
+    return r.json()["access_token"]
+
+
+def _auth_headers(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def _isolate_video_storage(tmp_path, monkeypatch):
+    from config import settings
+
+    monkeypatch.setattr(settings, "video_storage_dir", str(tmp_path / "videos"))
+
+
+@pytest.fixture
+def patch_media(monkeypatch):
+    from video import media
+
+    monkeypatch.setattr(media, "probe_video", lambda path: {"duration_seconds": 5.0, "has_audio": True})
+
+    def fake_extract_audio(video_path, out_path):
+        with open(out_path, "wb") as f:
+            f.write(b"fake-audio")
+
+    monkeypatch.setattr(media, "extract_audio", fake_extract_audio)
+    monkeypatch.setattr(
+        media, "transcribe", lambda audio_path: {"text": FULL_TRANSCRIPT_TEXT, "segments": FAKE_SEGMENTS}
+    )
+
+
+def test_video_upload_rejects_bad_format(client):
+    r = client.post("/api/video/upload", files={"file": ("notes.txt", b"hello", "text/plain")})
+    assert r.status_code == 400
+
+
+def test_video_upload_rejects_oversized(client, monkeypatch):
+    from config import settings
+
+    monkeypatch.setattr(settings, "video_max_size_mb", 0)
+    r = client.post("/api/video/upload", files={"file": ("speech.mp4", b"x" * 100, "video/mp4")})
+    assert r.status_code == 413
+
+
+def test_video_upload_happy_path(client, patch_media, patch_pipeline):
+    r = client.post("/api/video/upload", files={"file": ("speech.mp4", b"fake-video-bytes", "video/mp4")})
+    assert r.status_code == 200
+    video_id = r.json()["id"]
+
+    # TestClient runs BackgroundTasks synchronously in-process, so processing
+    # has already finished by the time the upload response above returned.
+    status_r = client.get(f"/api/video/{video_id}/status")
+    assert status_r.status_code == 200
+    assert status_r.json()["status"] == "complete"
+
+    get_r = client.get(f"/api/video/{video_id}")
+    assert get_r.status_code == 200
+    body = get_r.json()
+    assert body["source_type"] == "video"
+    assert body["text"] == FULL_TRANSCRIPT_TEXT
+    assert body["video"]["filename"] == "speech.mp4"
+    assert body["transcript"]["segments"][0]["text"] == SEG1
+    assert len(body["claims"]) == 1
+    claim = body["claims"][0]
+    # The fake pipeline's claim quote is text[:20], a prefix that falls
+    # entirely inside SEG1 - so both the claim's start and end should map to
+    # SEG1's timing.
+    assert claim["start_ms"] == 0
+    assert claim["end_ms"] == 3000
+
+    file_r = client.get(f"/api/video/{video_id}/file")
+    assert file_r.status_code == 200
+
+
+def test_video_no_speech_detected(client, monkeypatch, patch_pipeline):
+    from video import media
+
+    monkeypatch.setattr(media, "probe_video", lambda path: {"duration_seconds": 5.0, "has_audio": True})
+    monkeypatch.setattr(media, "extract_audio", lambda video_path, out_path: open(out_path, "wb").close())
+    monkeypatch.setattr(media, "transcribe", lambda audio_path: {"text": "   ", "segments": []})
+
+    r = client.post("/api/video/upload", files={"file": ("silent.mp4", b"bytes", "video/mp4")})
+    assert r.status_code == 200
+    video_id = r.json()["id"]
+
+    status_r = client.get(f"/api/video/{video_id}/status")
+    assert status_r.json()["status"] == "failed: no_speech_detected"
+
+
+def test_video_cross_user_access_is_404(client, patch_media, patch_pipeline):
+    owner_token = _register_and_login(client, "video-owner2@example.com")
+    other_token = _register_and_login(client, "video-other2@example.com")
+
+    r = client.post(
+        "/api/video/upload",
+        files={"file": ("speech.mp4", b"bytes", "video/mp4")},
+        headers=_auth_headers(owner_token),
+    )
+    assert r.status_code == 200
+    video_id = r.json()["id"]
+
+    assert client.get(f"/api/video/{video_id}", headers=_auth_headers(other_token)).status_code == 404
+    assert client.get(f"/api/video/{video_id}", headers=_auth_headers(owner_token)).status_code == 200
+
+    # The raw video file is deliberately NOT owner-restricted: a browser
+    # <video> tag can't attach an Authorization header, so this endpoint
+    # extends the same "id is the secret" trust guest analyses already get to
+    # the video bytes of owned analyses too - only the full analysis JSON
+    # (claims/sources/transcript) stays strictly owner-protected.
+    assert client.get(f"/api/video/{video_id}/file").status_code == 200
+    assert client.get(f"/api/video/{video_id}/file", headers=_auth_headers(other_token)).status_code == 200

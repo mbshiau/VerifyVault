@@ -6,6 +6,7 @@ from analysis.router import router as analysis_router
 from auth.router import router as auth_router
 from config import settings
 from schemas import CleanTextRequest, CleanTextResponse
+from video.router import router as video_router
 
 app = FastAPI(title="VerifyVault API")
 
@@ -22,6 +23,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 
 app.include_router(auth_router)
 app.include_router(analysis_router)
+app.include_router(video_router)
 
 
 @app.get("/health")

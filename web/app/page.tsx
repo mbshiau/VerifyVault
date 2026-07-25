@@ -2,19 +2,69 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createAnalysis } from "@/lib/api";
+import { createAnalysis, uploadVideo } from "@/lib/api";
+
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".m4v", ".webm"];
+const VIDEO_ACCEPT = VIDEO_EXTENSIONS.join(",");
+const MAX_VIDEO_MB = 500;
+
+type Mode = "text" | "video";
 
 export default function Home() {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>("text");
   const [text, setText] = useState("");
   const [speaker, setSpeaker] = useState("");
   const [speechDate, setSpeechDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  function pickVideoFile(file: File | null) {
+    setError(null);
+    if (!file) {
+      setVideoFile(null);
+      return;
+    }
+    const ext = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
+    if (!VIDEO_EXTENSIONS.includes(ext)) {
+      setError(`Unsupported file format '${ext}'. Please upload one of: ${VIDEO_EXTENSIONS.join(", ")}.`);
+      setVideoFile(null);
+      return;
+    }
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setError(`Video exceeds the ${MAX_VIDEO_MB}MB upload limit.`);
+      setVideoFile(null);
+      return;
+    }
+    setVideoFile(file);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (mode === "video") {
+      if (!videoFile) return;
+      setLoading(true);
+      setUploadProgress(0);
+      try {
+        const { id } = await uploadVideo(videoFile, {
+          speaker: speaker.trim() || undefined,
+          speechDate: speechDate || undefined,
+          onProgress: setUploadProgress,
+        });
+        router.push(`/analysis/${id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed");
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const a = await createAnalysis(text, speaker.trim(), speechDate || undefined);
@@ -25,15 +75,18 @@ export default function Home() {
     }
   }
 
+  const canSubmit = mode === "text" ? text.length >= 20 : videoFile !== null;
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
       <div className="max-w-3xl">
         <p className="text-sm uppercase tracking-[0.25em] text-slate-500">VerifyVault</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
-          Analyze political text with more clarity.
+          Analyze political text and video with more clarity.
         </h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-          Paste a speech, press release, or statement and get a structured breakdown of claims, context, and evidence.
+          Paste a speech, press release, or statement — or upload a video of one — and get a structured breakdown of
+          claims, context, and evidence.
         </p>
       </div>
 
@@ -42,6 +95,27 @@ export default function Home() {
           onSubmit={onSubmit}
           className="rounded-xl border border-slate-200 bg-white/90 p-6 shadow-sm shadow-slate-200/60 backdrop-blur"
         >
+          <div className="mb-6 inline-flex rounded-lg border border-slate-300 bg-slate-50 p-1 text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setMode("text")}
+              className={`rounded-md px-4 py-1.5 transition ${
+                mode === "text" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("video")}
+              className={`rounded-md px-4 py-1.5 transition ${
+                mode === "video" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Video
+            </button>
+          </div>
+
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block space-y-2">
@@ -65,28 +139,101 @@ export default function Home() {
               </label>
             </div>
 
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">Text to analyze</span>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Paste a speech, press release, or statement..."
-                className="min-h-[22rem] w-full rounded-xl border border-slate-300 bg-slate-50 p-5 text-base leading-8 text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
-                required
-                minLength={20}
-              />
-            </label>
+            {mode === "text" ? (
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Text to analyze</span>
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Paste a speech, press release, or statement..."
+                  className="min-h-[22rem] w-full rounded-xl border border-slate-300 bg-slate-50 p-5 text-base leading-8 text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+                  required
+                  minLength={20}
+                />
+              </label>
+            ) : (
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Video to analyze</span>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragActive(false);
+                    pickVideoFile(e.dataTransfer.files?.[0] ?? null);
+                  }}
+                  className={`flex min-h-[22rem] flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition ${
+                    dragActive ? "border-slate-500 bg-slate-100" : "border-slate-300 bg-slate-50"
+                  }`}
+                >
+                  <input
+                    id="video-file-input"
+                    type="file"
+                    accept={VIDEO_ACCEPT}
+                    className="hidden"
+                    onChange={(e) => pickVideoFile(e.target.files?.[0] ?? null)}
+                  />
+                  {videoFile ? (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-slate-900">{videoFile.name}</p>
+                      <p className="text-xs text-slate-500">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                      {!loading && (
+                        <button
+                          type="button"
+                          onClick={() => pickVideoFile(null)}
+                          className="text-xs font-medium text-slate-500 underline hover:text-slate-800"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-slate-700">Drag and drop a video, or</p>
+                      <label
+                        htmlFor="video-file-input"
+                        className="mt-3 cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
+                      >
+                        Choose file
+                      </label>
+                      <p className="mt-3 text-xs text-slate-500">mp4, mov, m4v, webm · up to 500MB · up to 2 hours</p>
+                    </>
+                  )}
+
+                  {loading && (
+                    <div className="mt-5 w-full max-w-xs">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className="h-full bg-slate-900 transition-all"
+                          style={{ width: `${Math.round(uploadProgress * 100)}%` }}
+                        />
+                      </div>
+                      <p className="mt-1.5 text-xs text-slate-500">Uploading… {Math.round(uploadProgress * 100)}%</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="sticky bottom-4 z-20 mt-6 border-t border-slate-200 bg-white/90 pt-4">
             <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-slate-500">The Analyze button stays visible as you scroll.</p>
+              <p className="text-sm text-slate-500">The submit button stays visible as you scroll.</p>
               <button
                 type="submit"
-                disabled={loading || text.length < 20}
+                disabled={loading || !canSubmit}
                 className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-slate-300 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "Analyzing..." : "Analyze"}
+                {loading
+                  ? mode === "video"
+                    ? "Uploading..."
+                    : "Analyzing..."
+                  : mode === "video"
+                    ? "Upload & analyze"
+                    : "Analyze"}
               </button>
             </div>
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -100,6 +247,7 @@ export default function Home() {
               <p>• Campaign speeches and debate transcripts</p>
               <p>• Press releases, newsletters, and policy statements</p>
               <p>• Social posts or short public remarks</p>
+              <p>• Video of speeches, interviews, debates, or press conferences</p>
             </div>
           </section>
 
@@ -109,6 +257,7 @@ export default function Home() {
               <p>Keep the source text intact so claims can be matched cleanly.</p>
               <p>Add a speaker and date when you know them to improve context.</p>
               <p>Whitespace and line breaks are fine — they make review easier.</p>
+              <p>For video, transcription and claim detection can take a few minutes for longer uploads.</p>
             </div>
           </section>
         </aside>

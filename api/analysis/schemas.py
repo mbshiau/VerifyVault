@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from models import Analysis, Claim
 from schemas import Entity
+from video.schemas import TranscriptOut, VideoOut
 
 
 class AnalyzeRequest(BaseModel):
@@ -47,6 +48,8 @@ class ClaimOut(BaseModel):
     materiality: float = 0.5
     position_in_text: int | None = None
     source: str = "pipeline"
+    start_ms: int | None = None
+    end_ms: int | None = None
     sources: list[SourceOut] = []
 
     @classmethod
@@ -64,6 +67,8 @@ class ClaimOut(BaseModel):
             materiality=claim.materiality,
             position_in_text=claim.position_in_text,
             source=claim.source,
+            start_ms=claim.start_ms,
+            end_ms=claim.end_ms,
             sources=[SourceOut.model_validate(s) for s in claim.sources],
         )
 
@@ -84,6 +89,8 @@ class AnalysisOut(BaseModel):
     user_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
+    video: VideoOut | None = None
+    transcript: TranscriptOut | None = None
 
     @classmethod
     def from_orm_analysis(cls, a: Analysis) -> "AnalysisOut":
@@ -103,6 +110,8 @@ class AnalysisOut(BaseModel):
             user_id=a.user_id,
             created_at=a.created_at,
             updated_at=a.updated_at,
+            video=VideoOut.from_orm_video(a.video) if a.video else None,
+            transcript=TranscriptOut.from_orm_transcript(a.transcript) if a.transcript else None,
         )
 
 

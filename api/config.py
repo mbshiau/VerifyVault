@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     # default, which chokes on a plain comma-separated value.
     cors_origin: str = "http://localhost:3000"
 
+    # Video upload/transcription
+    groq_whisper_model: str = "whisper-large-v3"
+    video_storage_dir: str = "uploads/videos"
+    video_max_size_mb: int = 500
+    video_max_duration_seconds: int = 7200
+
     # Auth
     jwt_secret: str = "dev-secret-change-me"
     jwt_algorithm: str = "HS256"
