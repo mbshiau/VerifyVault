@@ -13,6 +13,8 @@ from analysis.schemas import (
     AnalyzeSelectedClaimResponse,
     ClaimOut,
     RenameAnalysisRequest,
+    SharedAnalysisOut,
+    VisibilityRequest,
 )
 from auth.deps import get_current_user, get_current_user_optional
 from db import get_db
@@ -45,6 +47,8 @@ def list_analyses(q: str | None = None, db: Session = Depends(get_db), user: Use
             claim_count=count,
             created_at=a.created_at,
             updated_at=a.updated_at,
+            visibility=a.visibility,
+            share_token=a.share_token,
         )
         for a, count in service.list_analyses(db, user, q)
     ]
@@ -132,3 +136,36 @@ def claim_ownership(analysis_id: UUID, db: Session = Depends(get_db), user: User
         raise HTTPException(404, "not found")
     row = service.claim_ownership(db, row, user)
     return AnalysisOut.from_orm_analysis(row)
+
+
+@router.patch("/{analysis_id}/visibility", response_model=AnalysisOut)
+def update_visibility(
+    analysis_id: UUID,
+    payload: VisibilityRequest,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+):
+    row = service.get_accessible_analysis(db, analysis_id, user)
+    row = service.set_visibility(db, row, payload.visibility)
+    return AnalysisOut.from_orm_analysis(row)
+
+
+@router.post("/{analysis_id}/share", response_model=AnalysisOut)
+def share_analysis(
+    analysis_id: UUID, db: Session = Depends(get_db), user: User | None = Depends(get_current_user_optional)
+):
+    row = service.get_accessible_analysis(db, analysis_id, user)
+    row = service.ensure_share_token(db, row)
+    return AnalysisOut.from_orm_analysis(row)
+
+
+# Deliberately a separate, prefix-less router (registered without
+# /api/analysis) so shared links are short and don't leak the internal API
+# shape - see main.py.
+share_router = APIRouter(tags=["share"])
+
+
+@share_router.get("/share/{token}", response_model=SharedAnalysisOut)
+def get_shared_analysis(token: str, db: Session = Depends(get_db)):
+    row = service.get_analysis_by_share_token(db, token)
+    return SharedAnalysisOut.from_orm_analysis(row)

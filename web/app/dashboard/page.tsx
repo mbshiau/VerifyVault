@@ -3,8 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnalysisListItem, deleteAnalysis, listAnalyses, renameAnalysis } from "@/lib/api";
+import { AnalysisListItem, deleteAnalysis, listAnalyses, renameAnalysis, updateVisibility } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ShareDialog } from "@/components/ShareDialog";
+
+const VISIBILITY_BADGE: Record<AnalysisListItem["visibility"], string> = {
+  private: "🔒 Private",
+  unlisted: "🔗 Unlisted",
+  public: "🌍 Public",
+};
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -30,9 +37,15 @@ export default function DashboardPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [sharingItem, setSharingItem] = useState<AnalysisListItem | null>(null);
 
   const renameMutation = useMutation({
     mutationFn: ({ id, title }: { id: string; title: string }) => renameAnalysis(id, title),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["analyses"] }),
+  });
+  const visibilityMutation = useMutation({
+    mutationFn: ({ id, visibility }: { id: string; visibility: "private" | "unlisted" | "public" }) =>
+      updateVisibility(id, visibility),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["analyses"] }),
   });
   const deleteMutation = useMutation({
@@ -106,9 +119,30 @@ export default function DashboardPage() {
                 {item.claim_count} claim{item.claim_count === 1 ? "" : "s"} · {item.source_type} · Updated{" "}
                 {formatDate(item.updated_at)}
                 {item.status !== "complete" && <> · {item.status}</>}
+                {" · "}
+                {VISIBILITY_BADGE[item.visibility]}
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={() => setSharingItem(item)}
+                className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Share
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  visibilityMutation.mutate({
+                    id: item.id,
+                    visibility: item.visibility === "public" ? "private" : "public",
+                  })
+                }
+                className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                {item.visibility === "public" ? "Unpublish" : "Publish"}
+              </button>
               <button
                 type="button"
                 onClick={() => startRename(item)}
@@ -127,6 +161,14 @@ export default function DashboardPage() {
           </li>
         ))}
       </ul>
+
+      <ShareDialog
+        open={sharingItem !== null}
+        analysis={
+          sharingItem ?? { id: "", visibility: "private", share_token: null }
+        }
+        onClose={() => setSharingItem(null)}
+      />
 
       <ConfirmDialog
         open={pendingDeleteId !== null}

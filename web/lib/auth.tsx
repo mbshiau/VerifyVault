@@ -11,6 +11,10 @@ export type AuthUser = {
   profile_picture_url: string | null;
   auth_provider: string;
   created_at: string;
+  username: string | null;
+  bio: string;
+  avatar_url: string | null;
+  profile_visibility: "public" | "private";
 };
 
 type AuthContextValue = {
