@@ -37,7 +37,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const [expandedClaimIndex, setExpandedClaimIndex] = useState<number | null>(0);
   const [annotationMode, setAnnotationMode] = useState(false);
   const [selectedText, setSelectedText] = useState("");
-  const [selectionRect, setSelectionRect] = useState<{ top: number; left: number } | null>(null);
+  const [selectionRect, setSelectionRect] = useState<{ top: number; left: number; isBelow: boolean } | null>(null);
   const [selectedClaims, setSelectedClaims] = useState<Claim[]>([]);
   const [selectedClaimError, setSelectedClaimError] = useState<string | null>(null);
   const [analyzingSelection, setAnalyzingSelection] = useState(false);
@@ -137,9 +137,18 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
     const rect = range.getBoundingClientRect();
     const panelRect = textPanelRef.current.getBoundingClientRect();
+    const relativeTop = rect.top - panelRect.top + textPanelRef.current.scrollTop;
+    
+    // Check if popup would go off-screen above (less than 200px from top of panel)
+    // If so, position it below the selection instead
+    const isBelow = relativeTop < 200;
+    
     setSelectionRect({
-      top: rect.top - panelRect.top + textPanelRef.current.scrollTop,
+      top: isBelow 
+        ? rect.bottom - panelRect.top + textPanelRef.current.scrollTop
+        : relativeTop,
       left: rect.left - panelRect.left + rect.width / 2,
+      isBelow,
     });
     setSelectedText(next);
     setSelectedClaimError(null);
@@ -284,7 +293,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             annotationMode
               ? "bg-amber-300 text-slate-900 hover:bg-amber-200"
-              : "bg-slate-900 text-white hover:bg-slate-700"
+              : "bg-blueberry-600 text-white hover:bg-blueberry-700"
           }`}
         >
           {annotationMode ? "Annotation on" : "Annotate"}
@@ -350,7 +359,9 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
                 {!isVideo && selectedText && selectionRect && (
                   <div
-                    className="absolute z-20 w-80 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80"
+                    className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80 ${
+                      selectionRect.isBelow ? "translate-y-[8px]" : "-translate-y-[calc(100%+8px)]"
+                    }`}
                     style={{ top: selectionRect.top, left: selectionRect.left }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -369,12 +380,11 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                       type="button"
                       onClick={handleAnalyzeSelection}
                       disabled={analyzingSelection}
-                      className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-3 rounded-lg bg-blueberry-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {analyzingSelection ? "Analyzing..." : "Analyze selected text"}
                     </button>
                     {selectedClaimError && <p className="mt-2 text-xs text-red-600">{selectedClaimError}</p>}
-                    <div className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-slate-200 bg-white" />
                   </div>
                 )}
               </div>
@@ -399,8 +409,8 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     return (
                       <article
                         key={index}
-                        className={`rounded-xl border bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md hover:shadow-slate-200/60 ${
-                          isSelected ? "border-slate-400 ring-1 ring-slate-300" : "border-slate-200"
+                        className={`rounded-xl border bg-blueberry-50 p-4 transition hover:-translate-y-0.5 hover:border-blueberry-300 hover:bg-blueberry-50 hover:shadow-md hover:shadow-blueberry-200/60 ${
+                          isSelected ? "border-blueberry-300 ring-1 ring-blueberry-300" : "border-blueberry-200"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4">
@@ -417,7 +427,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                             <button
                               type="button"
                               onClick={() => copyClaim(claim, index)}
-                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                              className="rounded-lg border border-blueberry-200 px-3 py-1.5 text-xs font-medium text-blueberry-700 transition hover:bg-blueberry-100"
                             >
                               {copiedClaimIndex === index ? "Copied" : "Copy claim"}
                             </button>
@@ -427,7 +437,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                                 setSelectedClaimIndex(index);
                                 setExpandedClaimIndex(isExpanded ? null : index);
                               }}
-                              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+                              className="rounded-lg bg-blueberry-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blueberry-700"
                             >
                               {isExpanded ? "Collapse" : "Expand"}
                             </button>
@@ -522,7 +532,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                                   type="button"
                                   onClick={() => handleFindMoreSources(claim)}
                                   disabled={findingMoreSourcesFor === claim.id}
-                                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="rounded-lg border border-blueberry-200 px-3 py-1.5 text-xs font-medium text-blueberry-700 transition hover:bg-blueberry-100 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {findingMoreSourcesFor === claim.id ? "Searching..." : "+ Find more sources"}
                                 </button>

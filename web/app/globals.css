@@ -8,6 +8,50 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900;
+    @apply bg-white text-stone-900;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-black;
+  }
+
+  /* Premium UI touches */
+  h1 {
+    background: linear-gradient(135deg, #000000 0%, #1c1917 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  h2, h3 {
+    background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer components {
+  /* Light divider utility */
+  .divider-light {
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  /* Premium progress bar */
+  .progress-premium {
+    @apply h-2 w-full overflow-hidden rounded-full bg-blueberry-100;
+  }
+
+  .progress-premium-fill {
+    @apply h-full rounded-full bg-gradient-to-r from-blueberry-600 to-blueberry-500 transition-all duration-300;
+  }
+
+  /* Motivational text utility */
+  .micro-text {
+    @apply text-xs uppercase tracking-widest text-stone-500;
+  }
+
+  .micro-text-muted {
+    @apply text-xs uppercase tracking-widest text-stone-400;
   }
 }

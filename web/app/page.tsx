@@ -105,27 +105,28 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
       <div className="max-w-3xl">
-        <p className="text-sm uppercase tracking-[0.25em] text-slate-500">VerifyVault</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
+        <p className="text-sm uppercase tracking-[0.25em] text-stone-500 font-medium">VerifyVault</p>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight">
           Analyze political text and video with more clarity.
         </h1>
-        <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-          Paste a speech, press release, or statement — or upload a video of one — and get a structured breakdown of
+        <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">
+          Paste a speech, press release, or statement or upload a video of one and get a structured breakdown of
           claims, context, and evidence.
         </p>
+        <p className="mt-3 text-xs uppercase tracking-widest text-stone-400">Real-time analysis • Fact verification • Evidence gathering</p>
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <form
           onSubmit={onSubmit}
-          className="rounded-xl border border-slate-200 bg-white/90 p-6 shadow-sm shadow-slate-200/60 backdrop-blur"
+          className="rounded-lg border divider-light bg-white p-6 shadow-sm shadow-stone-100"
         >
-          <div className="mb-6 inline-flex rounded-lg border border-slate-300 bg-slate-50 p-1 text-sm font-medium">
+          <div className="mb-6 inline-flex rounded-md border divider-light bg-stone-50 p-1 text-sm font-medium">
             <button
               type="button"
               onClick={() => setMode("text")}
-              className={`rounded-md px-4 py-1.5 transition ${
-                mode === "text" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              className={`rounded-sm px-4 py-1.5 transition ${
+                mode === "text" ? "bg-blueberry-600 text-white" : "text-stone-600 hover:text-stone-900"
               }`}
             >
               Text
@@ -133,8 +134,8 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setMode("video")}
-              className={`rounded-md px-4 py-1.5 transition ${
-                mode === "video" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              className={`rounded-sm px-4 py-1.5 transition ${
+                mode === "video" ? "bg-blueberry-600 text-white" : "text-stone-600 hover:text-stone-900"
               }`}
             >
               Video
@@ -142,8 +143,8 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setMode("url")}
-              className={`rounded-md px-4 py-1.5 transition ${
-                mode === "url" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+              className={`rounded-sm px-4 py-1.5 transition ${
+                mode === "url" ? "bg-blueberry-600 text-white" : "text-stone-600 hover:text-stone-900"
               }`}
             >
               Video link
@@ -153,41 +154,45 @@ export default function Home() {
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Speaker</span>
+                <span className="text-sm font-medium text-black">Speaker</span>
+                <p className="text-xs text-stone-400">Optional</p>
                 <input
                   value={speaker}
                   onChange={(e) => setSpeaker(e.target.value)}
                   placeholder="Jane Smith, Senator"
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+                  className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
                 />
               </label>
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Date</span>
+                <span className="text-sm font-medium text-black">Date</span>
+                <p className="text-xs text-stone-400">Optional</p>
                 <input
                   type="date"
                   value={speechDate}
                   onChange={(e) => setSpeechDate(e.target.value)}
                   title="Date this was said or written (optional) — leave blank to assume today, set it for older text"
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+                  className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
                 />
               </label>
             </div>
 
             {mode === "text" ? (
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Text to analyze</span>
+                <span className="text-sm font-medium text-black">Text to analyze</span>
+                <p className="text-xs text-stone-400">Minimum 20 characters</p>
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Paste a speech, press release, or statement..."
-                  className="min-h-[22rem] w-full rounded-xl border border-slate-300 bg-slate-50 p-5 text-base leading-8 text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+                  className="min-h-[22rem] w-full rounded-lg border divider-light bg-stone-50 p-5 text-base leading-8 text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
                   required
                   minLength={20}
                 />
               </label>
             ) : (
               <div className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Video to analyze</span>
+                <span className="block text-sm font-medium text-black">Video to analyze</span>
+                <p className="text-xs text-stone-400">MP4, MOV, M4V, WebM · Up to 500MB · Up to 2 hours</p>
                 <div
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -199,8 +204,8 @@ export default function Home() {
                     setDragActive(false);
                     pickVideoFile(e.dataTransfer.files?.[0] ?? null);
                   }}
-                  className={`flex min-h-[22rem] flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition ${
-                    dragActive ? "border-slate-500 bg-slate-100" : "border-slate-300 bg-slate-50"
+                  className={`flex min-h-[22rem] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition ${
+                    dragActive ? "border-blueberry-600 bg-blueberry-50" : "border-divider-light bg-stone-50"
                   }`}
                 >
                   <input
@@ -212,13 +217,13 @@ export default function Home() {
                   />
                   {videoFile ? (
                     <div className="space-y-3">
-                      <p className="text-sm font-medium text-slate-900">{videoFile.name}</p>
-                      <p className="text-xs text-slate-500">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                      <p className="text-sm font-medium text-black">{videoFile.name}</p>
+                      <p className="text-xs text-stone-600">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
                       {!loading && (
                         <button
                           type="button"
                           onClick={() => pickVideoFile(null)}
-                          className="text-xs font-medium text-slate-500 underline hover:text-slate-800"
+                          className="text-xs font-medium text-stone-500 underline hover:text-stone-800"
                         >
                           Remove
                         </button>
@@ -226,26 +231,25 @@ export default function Home() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm font-medium text-slate-700">Drag and drop a video, or</p>
+                      <p className="text-sm font-medium text-stone-700">Drag and drop a video, or</p>
                       <label
                         htmlFor="video-file-input"
-                        className="mt-3 cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
+                        className="mt-3 cursor-pointer rounded-md bg-blueberry-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blueberry-700"
                       >
                         Choose file
                       </label>
-                      <p className="mt-3 text-xs text-slate-500">mp4, mov, m4v, webm · up to 500MB · up to 2 hours</p>
                     </>
                   )}
 
                   {loading && (
                     <div className="mt-5 w-full max-w-xs">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div className="progress-premium">
                         <div
-                          className="h-full bg-slate-900 transition-all"
+                          className="progress-premium-fill"
                           style={{ width: `${Math.round(uploadProgress * 100)}%` }}
                         />
                       </div>
-                      <p className="mt-1.5 text-xs text-slate-500">Uploading… {Math.round(uploadProgress * 100)}%</p>
+                      <p className="mt-2 text-xs text-stone-600 micro-text-muted">Uploading… {Math.round(uploadProgress * 100)}%</p>
                     </div>
                   )}
                 </div>
@@ -254,29 +258,26 @@ export default function Home() {
 
             {mode === "url" && (
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">YouTube or X/Twitter video URL</span>
+                <span className="text-sm font-medium text-black">YouTube or X/Twitter video URL</span>
+                <p className="text-xs text-stone-400">Audio is transcribed, video played from original source</p>
                 <input
                   type="url"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
                   placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status/..."
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+                  className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
                 />
-                <p className="text-xs text-slate-500">
-                  Only the audio is used for transcription - the video itself is played back directly from its
-                  original source, never downloaded or re-hosted.
-                </p>
               </label>
             )}
           </div>
 
-          <div className="sticky bottom-4 z-20 mt-6 border-t border-slate-200 bg-white/90 pt-4">
+          <div className="sticky bottom-4 z-20 mt-6 border-t divider-light bg-white pt-4">
             <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-slate-500">The submit button stays visible as you scroll.</p>
+              <p className="text-xs text-stone-500 micro-text">Visible while scrolling</p>
               <button
                 type="submit"
                 disabled={loading || !canSubmit}
-                className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-slate-300 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md bg-blueberry-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-blueberry-300 transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? mode === "video"
@@ -296,9 +297,10 @@ export default function Home() {
         </form>
 
         <aside className="space-y-6">
-          <section className="rounded-xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-lg font-semibold text-slate-900">What you can analyze</h2>
-            <div className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
+          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6">
+            <h2 className="text-lg font-semibold">What you can analyze</h2>
+            <p className="mt-1 text-xs text-stone-400 micro-text">Supported content types</p>
+            <div className="mt-4 space-y-3 text-sm leading-7 text-stone-700">
               <p>• Campaign speeches and debate transcripts</p>
               <p>• Press releases, newsletters, and policy statements</p>
               <p>• Social posts or short public remarks</p>
@@ -307,9 +309,10 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
-            <h2 className="text-lg font-semibold text-slate-900">Tips</h2>
-            <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
+          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-sm shadow-blueberry-100">
+            <h2 className="text-lg font-semibold">Tips for best results</h2>
+            <p className="mt-1 text-xs text-stone-400 micro-text">Optimization guide</p>
+            <div className="mt-4 space-y-4 text-sm leading-7 text-stone-700">
               <p>Keep the source text intact so claims can be matched cleanly.</p>
               <p>Add a speaker and date when you know them to improve context.</p>
               <p>Whitespace and line breaks are fine — they make review easier.</p>

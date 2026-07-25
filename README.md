@@ -9,6 +9,8 @@ Political Communication Analyzer — paste text, get structured claims, entities
 
 ## Run locally
 
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& c:\Users\oante\Documents\GitHub\VerifyVault\api\.venv\Scripts\Activate.ps1)
+
 ### Backend
 
 ```bash

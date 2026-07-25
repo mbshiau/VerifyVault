@@ -30,13 +30,13 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
       >
-        <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
-        {description && <p className="mt-2 text-sm text-neutral-600">{description}</p>}
+        <h2 className="text-base font-semibold text-black">{title}</h2>
+        {description && <p className="mt-2 text-sm text-stone-700">{description}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-sm border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            className="rounded-sm border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
           >
             {cancelLabel}
           </button>
@@ -44,7 +44,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             className={`rounded-sm px-3 py-1.5 text-sm font-medium text-white ${
-              danger ? "bg-red-600 hover:bg-red-500" : "bg-neutral-900 hover:bg-neutral-700"
+              danger ? "bg-red-600 hover:bg-red-500" : "bg-brand-700 hover:bg-brand-600"
             }`}
           >
             {confirmLabel}
