@@ -38,7 +38,7 @@ export function NavBar() {
               <Link href="/login" className="text-neutral-600 hover:text-neutral-900">
                 Sign in
               </Link>
-              <Link href="/signup" className="rounded-md bg-neutral-900 px-3 py-1.5 text-white">
+              <Link href="/signup" className="rounded-sm bg-neutral-900 px-3 py-1.5 text-white">
                 Sign up
               </Link>
             </>

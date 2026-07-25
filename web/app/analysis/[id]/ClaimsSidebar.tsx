@@ -25,7 +25,7 @@ export function ClaimDetails({ claim }: { claim: Claim }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Related Entities</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {claim.related_entities.map((name, i) => (
-              <span key={i} className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
+              <span key={i} className="rounded-sm bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
                 {name}
               </span>
             ))}
@@ -50,7 +50,7 @@ export function ClaimDetails({ claim }: { claim: Claim }) {
                   href={s.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="block rounded-md p-2 text-xs hover:bg-neutral-50"
+                  className="block rounded-sm p-2 text-xs hover:bg-neutral-50"
                 >
                   <span className="flex items-baseline gap-1.5">
                     <span className="truncate font-medium text-blue-700 underline">{s.title || s.url}</span>
@@ -106,7 +106,7 @@ export function ClaimsSidebar({
               ref={(el) => {
                 if (el) itemRefs.current.set(index, el);
               }}
-              className="overflow-hidden rounded-lg border border-neutral-200 bg-white"
+              className="overflow-hidden rounded-md border border-neutral-200 bg-white"
             >
               <button
                 type="button"
@@ -116,7 +116,7 @@ export function ClaimsSidebar({
                 }`}
               >
                 <span
-                  className={`mt-1 h-2 w-2 flex-none rounded-full ${
+                  className={`mt-1 h-2 w-2 flex-none rounded-sm ${
                     matchedIndexes.has(index) ? (isUserAdded ? "bg-purple-500" : "bg-yellow-500") : "bg-neutral-300"
                   }`}
                   title={matchedIndexes.has(index) ? "Highlighted in text" : "Not matched to a specific sentence"}

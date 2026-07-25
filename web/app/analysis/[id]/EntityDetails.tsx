@@ -14,7 +14,7 @@ export function EntityDetails({ entities }: { entities: EntityDetail[] }) {
         {entities.map((entity) => (
           <div
             key={entity.name}
-            className="rounded-lg border border-neutral-200 bg-white p-4 space-y-3"
+            className="rounded-md border border-neutral-200 bg-white p-4 space-y-3"
           >
             <div>
               <h3 className="font-semibold text-base">{entity.name}</h3>
@@ -38,7 +38,7 @@ export function EntityDetails({ entities }: { entities: EntityDetail[] }) {
                   {entity.related_claims.map((claim, idx) => (
                     <li
                       key={idx}
-                      className="text-xs text-neutral-600 bg-neutral-50 rounded p-1.5 border-l-2 border-neutral-300"
+                      className="text-xs text-neutral-600 bg-neutral-50 rounded-sm p-1.5 border-l-2 border-neutral-300"
                     >
                       {claim}
                     </li>
@@ -57,7 +57,7 @@ export function EntityDetails({ entities }: { entities: EntityDetail[] }) {
                     <li key={idx} className="text-xs">
                       <div className="flex items-center gap-2">
                         {source.category && (
-                          <span className="inline-block text-xs px-2 py-0.5 rounded bg-neutral-100 text-neutral-700">
+                          <span className="inline-block text-xs px-2 py-0.5 rounded-sm bg-neutral-100 text-neutral-700">
                             {source.category}
                           </span>
                         )}

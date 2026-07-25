@@ -25,7 +25,7 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onCancel}>
       <div
-        className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+        className="w-full max-w-sm rounded-md bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"
@@ -36,14 +36,14 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            className="rounded-sm border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium text-white ${
+            className={`rounded-sm px-3 py-1.5 text-sm font-medium text-white ${
               danger ? "bg-red-600 hover:bg-red-500" : "bg-neutral-900 hover:bg-neutral-700"
             }`}
           >
