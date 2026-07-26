@@ -199,8 +199,17 @@ def run_video_pipeline_task(analysis_id: UUID) -> None:
                 if claim.position_in_text is None:
                     continue
                 claim.start_ms = media.char_offset_to_ms(segments, claim.position_in_text, edge="start")
+                # -1 because char_offset_to_ms expects a single character's
+                # position within a half-open [start_char, end_char) range -
+                # position_in_text + len(quote) is one *past* the quote's
+                # last character, which lands exactly on the inter-segment
+                # gap (a joining space) whenever a quote ends at a sentence
+                # boundary, i.e. almost always. That gap matches no
+                # segment, so end_ms silently came back None for nearly
+                # every claim until this was pointed at the quote's actual
+                # last character instead.
                 claim.end_ms = media.char_offset_to_ms(
-                    segments, claim.position_in_text + len(claim.quote), edge="end"
+                    segments, claim.position_in_text + len(claim.quote) - 1, edge="end"
                 )
             row.status = "complete"
         except Exception as e:

@@ -280,19 +280,6 @@ export default function Home() {
               </div>
             )}
 
-            {mode === "url" && (
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-black">YouTube or X/Twitter video URL</span>
-                <p className="text-xs text-stone-400">Audio is transcribed, video played from original source</p>
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status..."
-                  className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
-                />
-              </label>
-            )}
           </div>
 
           <div className="sticky bottom-4 z-20 mt-6 border-t divider-light bg-white pt-4">
