@@ -1,6 +1,6 @@
 import { getAccessToken, setAccessToken } from "./tokenStore";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export type Source = {
   title: string;
@@ -157,16 +157,25 @@ async function apiFetch(path: string, init: RequestInit = {}, retry = true): Pro
   const token = getAccessToken();
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const r = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" });
-  if (r.status === 401 && retry) {
-    const refreshed = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" });
-    if (refreshed.ok) {
-      const data = await refreshed.json();
-      setAccessToken(data.access_token);
-      return apiFetch(path, init, false);
+  const fullUrl = `${API_URL}${path}`;
+  console.log("apiFetch:", { fullUrl, method: init.method || "GET", origin: typeof window !== 'undefined' ? window.location.origin : 'N/A' });
+  try {
+    const r = await fetch(fullUrl, { ...init, headers, credentials: "include" });
+    console.log("apiFetch response:", { status: r.status, url: r.url });
+    if (r.status === 401 && retry) {
+      const refreshed = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" });
+      if (refreshed.ok) {
+        const data = await refreshed.json();
+        setAccessToken(data.access_token);
+        return apiFetch(path, init, false);
+      }
     }
+    return r;
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("apiFetch network error:", { url: fullUrl, error: errMsg, errorObj: err });
+    throw err;
   }
-  return r;
 }
 
 export async function createAnalysis(text: string, speaker?: string, speechDate?: string): Promise<Analysis> {
@@ -398,3 +407,8 @@ export async function analyzeSelectedClaim(id: string, selectedText: string): Pr
   if (!r.ok) throw new Error(await readErrorMessage(r));
   return r.json();
 }
+
+
+
+
+

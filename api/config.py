@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # Kept as a raw comma-separated string (not list[str]) since this
     # pydantic-settings version JSON-decodes complex-typed env vars by
     # default, which chokes on a plain comma-separated value.
-    cors_origin: str = "http://localhost:3000"
+    cors_origin: str = "http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5173"
 
     # Video upload/transcription
     groq_whisper_model: str = "whisper-large-v3"

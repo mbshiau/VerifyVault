@@ -12,6 +12,63 @@ from config import settings
 client = OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url or None)
 
 
+def quick_find_claims(text: str, max_claims: int = 5) -> list[dict]:
+    """Lightweight heuristic claim detector for near-real-time suggestions.
+    Returns a list of claim dicts with minimal required fields.
+    This is intentionally conservative and fast — suitable for incremental
+    UI updates while the full pipeline runs asynchronously.
+    """
+    if not text:
+        return []
+    # Split into sentences naively
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    candidates: list[dict] = []
+    seen: set[str] = set()
+    for s in sentences:
+        if len(candidates) >= max_claims:
+            break
+        t = s.strip()
+        if not t or len(t) < 20:
+            continue
+        key = t.lower()
+        if key in seen:
+            continue
+        # Heuristic signals: numbers, percents, years, named entities (capitalized words), 'is/was/are' verbs
+        signals = 0
+        if re.search(r"\d{1,3}(?:,\d{3})*(?:\.\d+)?", t):
+            signals += 2
+        if re.search(r"\b\d{4}\b", t):
+            signals += 2
+        if "%" in t:
+            signals += 2
+        # proper nouns
+        if re.search(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", t):
+            signals += 1
+        if re.search(r"\b(is|are|was|were|reported|received|won|lost|voted|passed|bought|paid|made)\b", t, re.I):
+            signals += 1
+        # skip questions and obvious opinion phrases
+        if t.endswith("?"):
+            continue
+        if re.search(r"\b(opinion|believe|feel|think|should|must)\b", t, re.I):
+            continue
+        if signals >= 2:
+            cand = {
+                "text": t,
+                "quote": t,
+                "explanation": "Detected as a likely factual claim (heuristic).",
+                "context": "",
+                "related_entities": [],
+                "time_reference": "unspecified",
+                "confidence": 0.35,
+                "confidence_explanation": "heuristic detector",
+                "materiality": 0.5,
+                "sources": [],
+            }
+            candidates.append(cand)
+            seen.add(key)
+    return candidates
+
+
 _PRESIDENT_TRANSITION = date(2025, 1, 20)
 
 
