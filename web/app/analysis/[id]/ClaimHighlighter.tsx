@@ -71,9 +71,9 @@ export function ClaimHighlightedText({
         out.push(
           <span
             key={`${baseIndex}-${startInSlice}`}
-            className="inline-block cursor-pointer"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => { e.stopPropagation(); onWordClick && onWordClick(globalIndex); }}
+            className={`inline-block ${onWordClick ? 'cursor-pointer' : ''}`}
+            onMouseDown={onWordClick ? (e) => e.preventDefault() : undefined}
+            onClick={(e) => { e.stopPropagation(); if (onWordClick) onWordClick(globalIndex); }}
             role={onWordClick ? "button" : undefined}
             tabIndex={onWordClick ? 0 : undefined}
           >

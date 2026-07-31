@@ -32,9 +32,6 @@ export function NavBar() {
           <Link href="/library" className={linkClass('/library')}>
             Library
           </Link>
-          <Link href="/live" className={linkClass('/live')}>
-            Live
-          </Link>
           {!loading && user && (
             <>
               <Link href="/dashboard" className={linkClass('/dashboard')}>
