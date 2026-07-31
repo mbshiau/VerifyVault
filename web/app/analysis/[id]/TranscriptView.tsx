@@ -107,6 +107,13 @@ export function TranscriptView({
       if (ms != null) onSeek(ms);
     }
 
+    const segmentBoundaries = segments
+      .map((seg, i) => ({ charOffset: segmentOffsets[i]?.start, ms: seg.start_ms }))
+      .filter(
+        (b, i): b is { charOffset: number; ms: number } =>
+          b.charOffset !== undefined && b.ms != null && (segmentOffsets[i]?.end ?? 0) > (segmentOffsets[i]?.start ?? 0)
+      );
+
     return (
       <div>
         <div className="prose max-w-none">
@@ -117,6 +124,8 @@ export function TranscriptView({
             onSelect={onSelect ?? (() => {})}
             markRefs={markRefs ?? ({ current: new Map() } as MutableRefObject<Map<number, HTMLElement>>)}
             onWordClick={onWordClick}
+            segmentBoundaries={segmentBoundaries}
+            onSeek={onSeek}
           />
         </div>
       </div>

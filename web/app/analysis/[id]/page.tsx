@@ -417,7 +417,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     activeIndex={activeIndex}
                     onSelect={selectClaim}
                     markRefs={markRefs}
-                    summary={data.summary}
                   />
                 ) : (
                   <ClaimHighlightedText

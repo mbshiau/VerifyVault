@@ -11,6 +11,65 @@ def _auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
 
 
+def test_text_claims_ordered_by_position_not_materiality(client, monkeypatch):
+    """Claims should come back in the order they appear in the source text
+    (position_in_text ascending), even when an earlier claim has lower
+    materiality than a later one - materiality-desc is the DB relationship's
+    load order, but the wrong order for reading a document top to bottom.
+    """
+    import pipeline
+
+    text = "First claim sentence here. Second claim sentence follows."
+
+    def fake_run(t, speaker=None, speech_date=None):
+        return {
+            "title": "Ordering Test",
+            "summary": "",
+            "topics": [],
+            "entities": [],
+            "entity_details": [],
+            "claims": [
+                # Appears second in the text, but higher materiality - would
+                # sort first under materiality-desc ordering.
+                {
+                    "text": "second claim",
+                    "quote": "Second claim sentence follows.",
+                    "explanation": "",
+                    "context": "",
+                    "related_entities": [],
+                    "time_reference": None,
+                    "materiality": 0.9,
+                    "confidence": 0.5,
+                    "confidence_explanation": "",
+                    "sources": [],
+                },
+                # Appears first in the text, lower materiality.
+                {
+                    "text": "first claim",
+                    "quote": "First claim sentence here.",
+                    "explanation": "",
+                    "context": "",
+                    "related_entities": [],
+                    "time_reference": None,
+                    "materiality": 0.2,
+                    "confidence": 0.5,
+                    "confidence_explanation": "",
+                    "sources": [],
+                },
+            ],
+        }
+
+    monkeypatch.setattr(pipeline, "run", fake_run)
+
+    r = client.post("/api/analysis", json={"text": text})
+    analysis_id = r.json()["id"]
+
+    body = client.get(f"/api/analysis/{analysis_id}").json()
+    claims = body["claims"]
+    assert [c["text"] for c in claims] == ["first claim", "second claim"]
+    assert claims[0]["position_in_text"] < claims[1]["position_in_text"]
+
+
 def test_guest_create_and_read(client, patch_pipeline):
     r = client.post("/api/analysis", json={"text": TEXT})
     assert r.status_code == 200

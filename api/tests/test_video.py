@@ -99,6 +99,106 @@ def test_video_upload_happy_path(client, patch_media, patch_pipeline):
     assert file_r.status_code == 200
 
 
+def test_claim_quote_ending_at_segment_boundary_still_gets_end_ms(client, patch_media, monkeypatch):
+    """Regression test: a claim quote that exactly matches SEG1 (the
+    realistic case - claim quotes are usually whole sentences, so they
+    almost always end exactly at a segment boundary) must still resolve an
+    end_ms, not None. position_in_text + len(quote) is one-past-the-end,
+    which used to land exactly on the inter-segment gap.
+    """
+    import pipeline
+
+    def fake_run(text, speaker=None, speech_date=None):
+        return {
+            "title": "Boundary Test",
+            "summary": "",
+            "topics": [],
+            "entities": [],
+            "entity_details": [],
+            "claims": [
+                {
+                    "text": SEG1,
+                    "quote": SEG1,
+                    "explanation": "",
+                    "context": "",
+                    "related_entities": [],
+                    "time_reference": None,
+                    "materiality": 0.5,
+                    "confidence": 0.5,
+                    "confidence_explanation": "",
+                    "sources": [],
+                }
+            ],
+        }
+
+    monkeypatch.setattr(pipeline, "run", fake_run)
+
+    r = client.post("/api/video/upload", files={"file": ("speech.mp4", b"fake-video-bytes", "video/mp4")})
+    video_id = r.json()["id"]
+
+    body = client.get(f"/api/video/{video_id}").json()
+    claim = body["claims"][0]
+    assert claim["start_ms"] == 0
+    assert claim["end_ms"] == 3000
+
+
+def test_video_claims_ordered_chronologically_not_by_materiality(client, patch_media, monkeypatch):
+    """Video claims should come back in the order they're spoken (start_ms
+    ascending), even when a later-spoken claim has higher materiality -
+    text analyses keep materiality-first ordering (models.py's relationship
+    default), but that's the wrong order for a video transcript.
+    """
+    import pipeline
+
+    def fake_run(text, speaker=None, speech_date=None):
+        return {
+            "title": "Ordering Test",
+            "summary": "",
+            "topics": [],
+            "entities": [],
+            "entity_details": [],
+            "claims": [
+                # Spoken second (SEG2), but higher materiality - would sort
+                # first under materiality-desc ordering.
+                {
+                    "text": SEG2,
+                    "quote": SEG2,
+                    "explanation": "",
+                    "context": "",
+                    "related_entities": [],
+                    "time_reference": None,
+                    "materiality": 0.9,
+                    "confidence": 0.5,
+                    "confidence_explanation": "",
+                    "sources": [],
+                },
+                # Spoken first (SEG1), lower materiality.
+                {
+                    "text": SEG1,
+                    "quote": SEG1,
+                    "explanation": "",
+                    "context": "",
+                    "related_entities": [],
+                    "time_reference": None,
+                    "materiality": 0.2,
+                    "confidence": 0.5,
+                    "confidence_explanation": "",
+                    "sources": [],
+                },
+            ],
+        }
+
+    monkeypatch.setattr(pipeline, "run", fake_run)
+
+    r = client.post("/api/video/upload", files={"file": ("speech.mp4", b"fake-video-bytes", "video/mp4")})
+    video_id = r.json()["id"]
+
+    body = client.get(f"/api/video/{video_id}").json()
+    claims = body["claims"]
+    assert [c["text"] for c in claims] == [SEG1, SEG2]
+    assert claims[0]["start_ms"] < claims[1]["start_ms"]
+
+
 def test_video_no_speech_detected(client, monkeypatch, patch_pipeline):
     from video import media
 
