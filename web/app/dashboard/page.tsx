@@ -69,12 +69,13 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-8">
+      <div className="rounded-2xl bg-white/30 backdrop-blur-sm border border-white/10 p-6 shadow-[0_20px_40px_rgba(59,130,246,0.08)]">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">My Analyses</h1>
+          <h1 className="text-2xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blueberry-700 to-blueberry-400 drop-shadow-[0_6px_16px_rgba(59,130,246,0.12)]">My Analyses</h1>
           <p className="mt-0 text-xs text-stone-400 micro-text">Saved and in-progress analyses, plus your bookmarked library items</p>
         </div>
-        <Link href="/" className="rounded-md bg-blueberry-600 px-4 py-2 text-sm font-medium text-white hover:bg-blueberry-700">
+        <Link href="/" className="rounded-md bg-blueberry-600 px-4 py-2 text-sm font-medium text-white hover:bg-blueberry-700 shadow-sm shadow-blueberry-300">
           New Analysis
         </Link>
       </header>
@@ -83,7 +84,7 @@ export default function DashboardPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by title..."
-        className="mt-4 w-full rounded-md border divider-light bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
+              className="mt-4 w-full rounded-md border border-white/10 bg-white/60 backdrop-blur-sm p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
       />
 
       {isLoading && <p className="mt-8 text-sm text-stone-600">Loading…</p>}
@@ -95,9 +96,9 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <ul className="mt-6 divide-y divider-light overflow-hidden rounded-lg border divider-light bg-white">
+      <div className="mt-6 grid gap-6">
         {filtered.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
+          <article key={item.id} className="flex items-center justify-between gap-3 p-4 rounded-lg border border-neutral-200 bg-white/60 backdrop-blur-sm shadow-[0_8px_24px_rgba(59,130,246,0.08)] hover:shadow-[0_12px_36px_rgba(59,130,246,0.12)] transition">
             <div className="min-w-0 flex-1">
               {renamingId === item.id ? (
                 <input
@@ -116,20 +117,29 @@ export default function DashboardPage() {
                   {item.title}
                 </Link>
               )}
-              <p className="mt-0.5 text-xs text-stone-500">
-                <span className="text-black">{item.claim_count} claim{item.claim_count === 1 ? "" : "s"}</span>
-                {" · "}
-                <span className={item.source_type === "video" || item.source_type === "text" ? "text-blueberry-600 font-medium" : "text-black"}>
-                  {item.source_type}
-                </span>
-                {" · "}
-                <span className="text-black">Updated {formatDate(item.updated_at)}</span>
-                {item.status !== "complete" && <> {" · "}<span className="text-black">{item.status}</span></>}
-                {" · "}
-                <span className={item.visibility === "private" ? "text-blueberry-600 font-medium" : "text-black"}>
-                  {VISIBILITY_BADGE[item.visibility]}
-                </span>
-              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 rounded-lg bg-stone-100/60 px-3 py-1.5">
+                  <span className="text-sm font-semibold text-blueberry-700">{item.claim_count}</span>
+                  <span className="text-xs font-medium text-stone-600">Claims</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-blueberry-100/60 px-3 py-1.5">
+                  <span className="text-sm font-semibold text-blueberry-700 capitalize">{item.source_type}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-stone-100/60 px-3 py-1.5">
+                  <span className="text-xs font-medium text-stone-600">Updated</span>
+                  <span className="text-sm font-semibold text-stone-900">{formatDate(item.updated_at)}</span>
+                </div>
+                {item.status !== "complete" && (
+                  <div className="flex items-center gap-2 rounded-lg bg-yellow-100/60 px-3 py-1.5">
+                    <span className="text-xs font-medium text-stone-600">Status</span>
+                    <span className="text-sm font-semibold text-yellow-700">{item.status}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 rounded-lg bg-blueberry-100/60 px-3 py-1.5">
+                  <span className="text-xs font-medium text-stone-600">Visibility</span>
+                  <span className="text-sm font-semibold text-blueberry-700">{VISIBILITY_BADGE[item.visibility]}</span>
+                </div>
+              </div>
             </div>
             <div className="flex shrink-0 gap-2">
               <button
@@ -166,9 +176,9 @@ export default function DashboardPage() {
                 Delete
               </button>
             </div>
-          </li>
+          </article>
         ))}
-      </ul>
+      </div>
 
       {/* Bookmarked items section */}
       <section className="mt-8">
@@ -182,20 +192,24 @@ export default function DashboardPage() {
           <p className="mt-4 text-sm text-neutral-500">You haven't bookmarked anything yet.</p>
         )}
         {!bookmarksLoading && !bookmarksError && bookmarks && bookmarks.length > 0 && (
-          <ul className="mt-4 divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+          <ul className="mt-4 divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-white/10 bg-white/60 shadow-[0_20px_40px_rgba(59,130,246,0.08)]">
             {bookmarks.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <Link href={`/library/${item.id}`} className="truncate text-sm font-semibold text-blueberry-700 hover:underline">{item.title}</Link>
-                  <p className="mt-0.5 text-xs text-stone-500">
-                    <span className="text-black">{item.claim_count} claim{item.claim_count === 1 ? "" : "s"}</span>
-                    {" · "}
-                    <span className={item.source_type === "video" || item.source_type === "text" ? "text-blueberry-600 font-medium" : "text-black"}>
-                      {item.source_type}
-                    </span>
-                    {" · "}
-                    <span className="text-black">{formatDate(item.published_at || item.created_at)}</span>
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex items-center gap-1.5 rounded-lg bg-stone-100/60 px-2.5 py-1">
+                      <span className="text-xs font-semibold text-blueberry-700">{item.claim_count}</span>
+                      <span className="text-xs font-medium text-stone-600">Claims</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-lg bg-blueberry-100/60 px-2.5 py-1">
+                      <span className="text-xs font-semibold text-blueberry-700 capitalize">{item.source_type}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-lg bg-stone-100/60 px-2.5 py-1">
+                      <span className="text-xs font-medium text-stone-600">Date</span>
+                      <span className="text-xs font-semibold text-stone-900">{formatDate(item.published_at || item.created_at)}</span>
+                    </div>
+                  </div>
                 </div>
                 <Link href={`/library/${item.id}`} className="shrink-0 rounded-md border border-blueberry-300 px-2.5 py-1 text-xs font-medium text-blueberry-700 hover:bg-blueberry-50">View</Link>
               </li>
@@ -203,6 +217,7 @@ export default function DashboardPage() {
           </ul>
         )}
       </section>
+      </div>
 
       <ShareDialog
         open={sharingItem !== null}

@@ -68,7 +68,7 @@ export default function LibraryPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
-      <header>
+      <header className="rounded-2xl p-4 bg-white/30 backdrop-blur-sm shadow-[0_12px_24px_rgba(59,130,246,0.12)] border border-white/10">
         <h1 className="text-2xl font-semibold">Public Library</h1>
         <p className="mt-1 text-sm text-neutral-500">Browse fact-checks other users have made public.</p>
       </header>
@@ -78,9 +78,9 @@ export default function LibraryPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search title, claims, or creator..."
-          className="w-full max-w-sm rounded-lg border border-neutral-300 bg-white p-3 text-sm focus:border-neutral-900 focus:outline-none"
+          className="w-full max-w-sm rounded-lg border border-neutral-300 bg-white/70 backdrop-blur-sm p-3 text-sm focus:border-neutral-900 focus:outline-none focus:shadow-md focus:shadow-blueberry-200"
         />
-        <div className="inline-flex rounded-lg border border-neutral-300 bg-neutral-50 p-1 text-sm font-medium">
+        <div className="inline-flex rounded-lg border border-neutral-300 bg-neutral-50/90 p-1 text-sm font-medium shadow-sm shadow-blueberry-50">
           {(["recent", "trending"] as const).map((s) => (
             <button
               key={s}
@@ -153,7 +153,7 @@ function LibraryCard({
   onToggleBookmark: () => void;
 }) {
   return (
-    <article className="flex flex-col justify-between rounded-lg border border-blueberry-600 bg-white p-4">
+    <article className="flex flex-col justify-between rounded-lg border border-neutral-200 bg-white/60 backdrop-blur-sm p-4 shadow-[0_8px_24px_rgba(59,130,246,0.08)] hover:shadow-[0_12px_36px_rgba(59,130,246,0.12)] transition">
       <div>
         <Link href={`/library/${item.id}`} className="text-sm font-semibold text-neutral-900 hover:underline">
           {item.title}
@@ -179,7 +179,7 @@ function LibraryCard({
         <button
           type="button"
           onClick={onToggleBookmark}
-          className={`mt-3 self-start rounded-md border px-2.5 py-1 text-xs font-medium ${
+          className={`mt-3 self-start rounded-md border px-2.5 py-1 text-xs font-medium shadow-sm ${
             isBookmarked
                           ? "border-blueberry-600 bg-blueberry-600 text-white"
               : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"

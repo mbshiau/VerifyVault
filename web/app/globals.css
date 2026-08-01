@@ -54,4 +54,33 @@
   .micro-text-muted {
     @apply text-xs uppercase tracking-widest text-stone-400;
   }
+
+  /* Glassy UI utilities for analysis pages */
+  .glass-panel {
+    /* semi-transparent white + subtle backdrop blur, border and stronger shadow */
+    @apply bg-white/60 backdrop-blur-sm border border-slate-200/40 shadow-lg;
+  }
+
+  .glass-card {
+    /* slightly tinted slate background for lightweight cards */
+    @apply bg-slate-50/70 border border-slate-200/30 shadow-md;
+  }
+
+  /* Blue-tinted variant for claim cards */
+  .glass-blue-card {
+    /* preserve translucency but use blueberry tint and borders */
+    @apply bg-blueberry-50/80 border border-blueberry-200/30;
+    /* stronger blue-tinted shadow for emphasis */
+    box-shadow: 0 8px 20px rgba(59,130,246,0.14), 0 2px 6px rgba(59,130,246,0.08);
+    transition: box-shadow .18s ease, transform .12s ease;
+  }
+
+  .glass-blue-card:hover {
+    box-shadow: 0 20px 40px rgba(59,130,246,0.22), 0 6px 18px rgba(59,130,246,0.12);
+    transform: translateY(-2px);
+  }
+
+  .glass-small {
+    @apply bg-white/60 border border-slate-200/30 shadow-sm;
+  }
 }

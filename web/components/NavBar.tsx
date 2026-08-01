@@ -16,11 +16,11 @@ export function NavBar() {
 
   function linkClass(href: string, extra = "") {
       const active = pathname?.startsWith(href);
-      return `inline-flex items-center rounded-full px-3 py-1 ${active ? 'border-b-2 border-blueberry-600' : ''} bg-blueberry-50 text-blueberry-700 hover:bg-blueberry-100 ${extra}`;
+      return `inline-flex items-center rounded-full px-3 py-1 ${active ? 'border-b-2 border-blueberry-600' : ''} bg-gradient-to-br from-blueberry-100/50 to-blueberry-200/50 text-blueberry-700 hover:from-blueberry-100/70 hover:to-blueberry-200/70 backdrop-blur-2xl shadow-lg shadow-blueberry-200/30 ${extra}`;
     }
 
   return (
-    <nav className="border-b border-stone-200 bg-white">
+    <nav className="border-b border-blueberry-300/50 bg-gradient-to-r from-white/50 via-blueberry-50/40 to-white/50 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/" className="inline-flex items-center text-black text-2xl font-bold relative px-1" style={{ fontFamily: 'Times New Roman, Times, serif' }}>
                   <span className="relative">
@@ -41,7 +41,7 @@ export function NavBar() {
                 Settings
               </Link>
               <span className="ml-2 text-xs text-stone-500">{user.email}</span>
-              <button type="button" onClick={onLogout} className={`ml-3 inline-flex items-center rounded-full px-3 py-1 bg-blueberry-50 text-blueberry-700 hover:bg-blueberry-100`}>
+              <button type="button" onClick={onLogout} className={`ml-3 inline-flex items-center rounded-full px-3 py-1 bg-gradient-to-br from-blueberry-100/50 to-blueberry-200/50 text-blueberry-700 hover:from-blueberry-100/70 hover:to-blueberry-200/70 backdrop-blur-2xl shadow-lg shadow-blueberry-200/30`}>
                 Log out
               </button>
             </>
@@ -51,7 +51,7 @@ export function NavBar() {
               <Link href="/login" className={linkClass('/login')}>
                 Sign in
               </Link>
-              <Link href="/signup" className="ml-2 inline-flex items-center rounded-full px-3 py-1 bg-blueberry-600 text-white hover:bg-blueberry-700">
+              <Link href="/signup" className="ml-2 inline-flex items-center rounded-full px-3 py-1 bg-gradient-to-br from-blueberry-600/70 to-blueberry-700/70 text-white hover:from-blueberry-600/85 hover:to-blueberry-700/85 backdrop-blur-2xl shadow-lg shadow-blueberry-600/40 transition">
                 Sign up
               </Link>
             </>

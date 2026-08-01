@@ -40,6 +40,20 @@ class SourceOut(BaseModel):
     relation: str = ""
 
 
+def _ordered_claims(a: Analysis) -> list[Claim]:
+    """Claim.claims loads materiality-first by default (see models.py), but
+    for display purposes readers expect claims in the order they actually
+    appear in the source - by start_ms for video (chronological in the
+    video) or position_in_text for text (chronological in the document).
+    Claims missing that position (e.g. a user-selected claim added after
+    the fact, or one whose quote couldn't be matched) sort to the end
+    rather than colliding at the front.
+    """
+    if a.source_type == "video":
+        return sorted(a.claims, key=lambda c: (c.start_ms is None, c.start_ms))
+    return sorted(a.claims, key=lambda c: (c.position_in_text is None, c.position_in_text))
+
+
 class ClaimOut(BaseModel):
     id: UUID
     text: str
@@ -112,7 +126,7 @@ class AnalysisOut(BaseModel):
             speaker=a.speaker,
             speech_date=a.speech_date,
             summary=a.summary,
-            claims=[ClaimOut.from_orm_claim(c) for c in a.claims],
+            claims=[ClaimOut.from_orm_claim(c) for c in _ordered_claims(a)],
             topics=a.topics or [],
             entities=a.entities or [],
             entity_details=a.entity_details or [],
@@ -173,7 +187,7 @@ class SharedAnalysisOut(BaseModel):
             speaker=a.speaker,
             speech_date=a.speech_date,
             summary=a.summary,
-            claims=[ClaimOut.from_orm_claim(c) for c in a.claims],
+            claims=[ClaimOut.from_orm_claim(c) for c in _ordered_claims(a)],
             topics=a.topics or [],
             entities=a.entities or [],
             entity_details=a.entity_details or [],

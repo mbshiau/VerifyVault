@@ -141,24 +141,23 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
     const rect = range.getBoundingClientRect();
     const panelRect = textPanelRef.current.getBoundingClientRect();
-    const relativeTop = rect.top - panelRect.top + textPanelRef.current.scrollTop;
-    
+    const panel = textPanelRef.current;
+    const relativeTop = rect.top - panelRect.top + panel.scrollTop;
+
     // Check if popup would go off-screen above (less than 200px from top of panel)
     // If so, position it below the selection instead
     const isBelow = relativeTop < 200;
-    
-    const initialTop = isBelow
-      ? rect.bottom - panelRect.top + textPanelRef.current.scrollTop
-      : relativeTop;
-    const initialLeft = rect.left - panelRect.left + rect.width / 2;
+
+    // initial top/left (will be adjusted when popup size is known)
+    const initialTop = rect.bottom - panelRect.top + panel.scrollTop; // default assume below
+    const initialLeft = rect.left - panelRect.left + panel.scrollLeft + rect.width / 2;
 
     setSelectionRect({ top: initialTop, left: initialLeft, isBelow });
     setSelectedText(next);
     setSelectedClaimError(null);
 
-    // Ensure popup stays within visible panel bounds for videos and long transcripts
+    // Adjust to final top/left that positions the popup fully inside the panel
     requestAnimationFrame(() => {
-      const panel = textPanelRef.current;
       const popup = selectionPopupRef.current;
       if (!panel || !popup) return;
 
@@ -166,26 +165,35 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       const popupWidth = popup.offsetWidth;
       const panelHeight = panel.clientHeight;
       const scrollTop = panel.scrollTop;
+      const scrollLeft = panel.scrollLeft;
 
-      let top = initialTop;
-      const minTop = scrollTop + 8;
-      const maxTop = scrollTop + panelHeight - popupHeight - 8;
-      if (maxTop < minTop) {
-        // popup taller than panel; pin to scrollTop
-        top = minTop;
+      // Compute desired top so popup sits either below the selection (preferred)
+      // or above it if there's not enough space below.
+      const belowTop = rect.bottom - panelRect.top + panel.scrollTop + 8; // a little gap below selection
+      const aboveTop = rect.top - panelRect.top + panel.scrollTop - popupHeight - 8; // place above selection
+
+      // Choose below if it fits, otherwise above
+      let finalTop = belowTop;
+      if (belowTop + popupHeight > scrollTop + panelHeight - 8) {
+        finalTop = aboveTop;
+      }
+
+      // Clamp finalTop within panel content bounds
+      const minFinalTop = scrollTop + 8;
+      const maxFinalTop = scrollTop + panelHeight - popupHeight - 8;
+      if (maxFinalTop < minFinalTop) {
+        finalTop = minFinalTop; // popup taller than panel
       } else {
-        top = Math.min(Math.max(top, minTop), maxTop);
+        finalTop = Math.min(Math.max(finalTop, minFinalTop), maxFinalTop);
       }
 
-      let left = initialLeft;
-      const minLeft = popupWidth / 2 + 8;
-      const maxLeft = panel.clientWidth - popupWidth / 2 - 8;
-      left = Math.min(Math.max(left, minLeft), maxLeft);
+      // Clamp left so popup stays within horizontal bounds of panel
+      let finalLeft = rect.left - panelRect.left + panel.scrollLeft + rect.width / 2;
+      const minLeft = scrollLeft + popupWidth / 2 + 8;
+      const maxLeft = scrollLeft + panel.clientWidth - popupWidth / 2 - 8;
+      finalLeft = Math.min(Math.max(finalLeft, minLeft), maxLeft);
 
-      // update only if adjusted
-      if (top !== initialTop || left !== initialLeft) {
-        setSelectionRect((prev) => (prev ? { ...prev, top, left } : prev));
-      }
+      setSelectionRect((prev) => (prev ? { ...prev, top: finalTop, left: finalLeft, isBelow: finalTop === belowTop } : prev));
     });
   }
 
@@ -392,7 +400,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
             </div>
           )}
           <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
+            <section className="rounded-xl p-6 glass-panel">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-slate-900">{isVideo ? "Transcript" : "Original text"}</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -417,7 +425,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     activeIndex={activeIndex}
                     onSelect={selectClaim}
                     markRefs={markRefs}
-                    summary={data.summary}
                   />
                 ) : (
                   <ClaimHighlightedText
@@ -432,9 +439,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                 {selectedText && selectionRect && (
                   <div
                     ref={selectionPopupRef}
-                    className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80 ${
-                      selectionRect.isBelow ? "translate-y-[8px]" : "-translate-y-[calc(100%+8px)]"
-                    }`}
+                    className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg p-4 glass-panel shadow-xl`}
                     style={{ top: selectionRect.top, left: selectionRect.left }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -463,7 +468,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
               </div>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
+            <section className="rounded-xl p-6 glass-panel">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-slate-900">Detected claims</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">Expandable cards with claim text, metadata, and evidence.</p>
@@ -482,8 +487,8 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                     return (
                       <article
                         key={index}
-                        className={`rounded-xl border bg-blueberry-50 p-4 transition hover:-translate-y-0.5 hover:border-blueberry-300 hover:bg-blueberry-50 hover:shadow-md hover:shadow-blueberry-200/60 ${
-                          isSelected ? "border-blueberry-300 ring-1 ring-blueberry-300" : "border-blueberry-200"
+                      className={`rounded-xl p-4 glass-blue-card transition hover:-translate-y-0.5 hover:shadow-xl ${
+                        isSelected ? "border-blueberry-300 ring-1 ring-blueberry-300" : "border-blueberry-200/30"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4">

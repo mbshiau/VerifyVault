@@ -108,11 +108,9 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
-      <div className="max-w-3xl">
+      <div className="max-w-3xl p-6 rounded-2xl bg-white/30 backdrop-blur-sm shadow-[0_20px_40px_rgba(59,130,246,0.16)] border border-white/10">
         <p className="text-sm uppercase tracking-[0.25em] text-stone-500 font-medium">VerifyVault</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">
-          Analyze political text and video with more clarity.
-        </h1>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight bg-gradient-to-r from-blueberry-800 via-blueberry-700 to-blueberry-800 bg-clip-text text-transparent drop-shadow-[0_6px_16px_rgba(47,56,159,0.2)]">Analyze political text and video with more clarity.</h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">
           Paste a speech, press release, or statement or upload a video of one and get a structured breakdown of
           claims, context, and evidence.
@@ -123,7 +121,7 @@ export default function Home() {
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <form
           onSubmit={onSubmit}
-          className="rounded-lg border divider-light bg-white p-6 shadow-sm shadow-stone-100"
+          className="rounded-2xl border border-white/10 bg-white/60 backdrop-blur-sm p-6 shadow-[0_20px_40px_rgba(59,130,246,0.16)]"
         >
           <div className="mb-6 inline-flex rounded-md border divider-light bg-stone-50 p-1 text-sm font-medium">
             <button
@@ -280,28 +278,15 @@ export default function Home() {
               </div>
             )}
 
-            {mode === "url" && (
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-black">YouTube or X/Twitter video URL</span>
-                <p className="text-xs text-stone-400">Audio is transcribed, video played from original source</p>
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or https://x.com/.../status..."
-                  className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
-                />
-              </label>
-            )}
           </div>
 
-          <div className="sticky bottom-4 z-20 mt-6 border-t divider-light bg-white pt-4">
+          <div className="sticky bottom-4 z-20 mt-6 border-t divider-light bg-white/70 backdrop-blur-sm pt-4">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs text-stone-500 micro-text">Visible while scrolling</p>
               <button
                 type="submit"
                 disabled={loading || !canSubmit}
-                  className="rounded-md bg-blueberry-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-blueberry-300 transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md bg-blueberry-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blueberry-400 transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? mode === "video"
@@ -321,7 +306,7 @@ export default function Home() {
         </form>
 
         <aside className="space-y-6">
-          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6">
+          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-md shadow-blueberry-200">
             <h2 className="text-lg font-semibold">What you can analyze</h2>
             <p className="mt-1 text-xs text-stone-400 micro-text">Supported content types</p>
             <div className="mt-4 space-y-3 text-sm leading-7 text-stone-700">
@@ -333,7 +318,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-sm shadow-blueberry-100">
+          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-md shadow-blueberry-200">
             <h2 className="text-lg font-semibold">Tips for best results</h2>
             <p className="mt-1 text-xs text-stone-400 micro-text">Optimization guide</p>
             <div className="mt-4 space-y-4 text-sm leading-7 text-stone-700">

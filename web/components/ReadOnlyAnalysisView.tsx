@@ -101,7 +101,7 @@ export function ReadOnlyAnalysisView({
       )}
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
+        <section className="rounded-xl p-6 glass-panel">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-slate-900">{isVideo ? "Transcript" : "Original text"}</h2>
           </div>
@@ -130,7 +130,7 @@ export function ReadOnlyAnalysisView({
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
+        <section className="rounded-xl p-6 glass-panel">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-slate-900">Detected claims</h2>
           </div>
@@ -146,8 +146,8 @@ export function ReadOnlyAnalysisView({
                 return (
                   <article
                     key={index}
-                    className={`rounded-xl border bg-slate-50/80 p-4 transition ${
-                      activeIndex === index ? "border-slate-400 ring-1 ring-slate-300" : "border-slate-200"
+                    className={`rounded-xl p-4 glass-blue-card transition ${
+                      activeIndex === index ? "border-slate-400 ring-1 ring-slate-300" : "border-blueberry-200/30"
                     }`}
                   >
                     <button type="button" onClick={() => selectClaim(index)} className="w-full text-left">

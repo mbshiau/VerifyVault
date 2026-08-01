@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from analysis.schemas import ClaimOut
+from analysis.schemas import ClaimOut, _ordered_claims
 from models import Analysis, User
 from schemas import Entity
 from video.schemas import TranscriptOut, VideoOut
@@ -68,7 +68,7 @@ class PublicAnalysisDetailOut(BaseModel):
             speaker=a.speaker,
             speech_date=a.speech_date,
             summary=a.summary,
-            claims=[ClaimOut.from_orm_claim(c) for c in a.claims],
+            claims=[ClaimOut.from_orm_claim(c) for c in _ordered_claims(a)],
             topics=a.topics or [],
             entities=a.entities or [],
             entity_details=a.entity_details or [],

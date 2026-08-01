@@ -28,7 +28,7 @@ export function VideoProcessingStepper({ status }: { status: string }) {
   const currentIndex = STEPS.findIndex((s) => s.status === status);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60">
+    <div className="rounded-xl p-6 glass-panel">
       <ol className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm">
         {STEPS.map((step, index) => {
           const done = currentIndex >= 0 && index < currentIndex;
