@@ -14,7 +14,7 @@ export function EntityDetails({ entities }: { entities: EntityDetail[] }) {
         {entities.map((entity) => (
           <div
             key={entity.name}
-            className="rounded-md p-4 glass-small space-y-3"
+            className="rounded-md p-4 glass-entity-blue space-y-3"
           >
             <div>
               <h3 className="font-semibold text-base text-black">{entity.name}</h3>

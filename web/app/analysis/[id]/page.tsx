@@ -439,7 +439,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                 {selectedText && selectionRect && (
                   <div
                     ref={selectionPopupRef}
-                    className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg p-4 glass-panel shadow-xl`}
+                                      className={`absolute z-20 w-80 -translate-x-1/2 rounded-lg p-4 bg-white border border-slate-200 shadow-xl`}
                     style={{ top: selectionRect.top, left: selectionRect.left }}
                   >
                     <div className="flex items-start justify-between gap-3">

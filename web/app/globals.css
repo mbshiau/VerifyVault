@@ -83,4 +83,17 @@
   .glass-small {
     @apply bg-white/60 border border-slate-200/30 shadow-sm;
   }
+
+  /* Strong blue shadow variant for entity cards */
+  .glass-entity-blue {
+    @apply bg-white/60 border border-blueberry-200/30;
+    /* adjusted blue-tinted shadow for entity emphasis (less intense) */
+    box-shadow: 0 8px 20px rgba(59,130,246,0.14), 0 3px 8px rgba(59,130,246,0.08);
+    transition: box-shadow .18s ease, transform .12s ease;
+  }
+
+  .glass-entity-blue:hover {
+    box-shadow: 0 16px 36px rgba(59,130,246,0.18), 0 6px 16px rgba(59,130,246,0.10);
+    transform: translateY(-1px);
+  }
 }
