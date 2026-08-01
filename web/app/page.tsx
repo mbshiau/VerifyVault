@@ -108,9 +108,9 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
-      <div className="max-w-3xl p-6 rounded-2xl bg-white/30 backdrop-blur-sm shadow-[0_20px_40px_rgba(59,130,246,0.08)] border border-white/10">
+      <div className="max-w-3xl p-6 rounded-2xl bg-white/30 backdrop-blur-sm shadow-[0_20px_40px_rgba(59,130,246,0.16)] border border-white/10">
         <p className="text-sm uppercase tracking-[0.25em] text-stone-500 font-medium">VerifyVault</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blueberry-700 to-blueberry-400 drop-shadow-[0_6px_16px_rgba(59,130,246,0.12)]">
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blueberry-700 to-blueberry-400 drop-shadow-[0_6px_16px_rgba(59,130,246,0.22)]">
           Analyze political text and video with more clarity.
         </h1>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">
@@ -123,7 +123,7 @@ export default function Home() {
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <form
           onSubmit={onSubmit}
-          className="rounded-2xl border border-white/10 bg-white/60 backdrop-blur-sm p-6 shadow-[0_20px_40px_rgba(59,130,246,0.08)]"
+          className="rounded-2xl border border-white/10 bg-white/60 backdrop-blur-sm p-6 shadow-[0_20px_40px_rgba(59,130,246,0.16)]"
         >
           <div className="mb-6 inline-flex rounded-md border divider-light bg-stone-50 p-1 text-sm font-medium">
             <button
@@ -288,7 +288,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading || !canSubmit}
-                  className="rounded-md bg-blueberry-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-blueberry-300 transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md bg-blueberry-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blueberry-400 transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? mode === "video"
@@ -308,7 +308,7 @@ export default function Home() {
         </form>
 
         <aside className="space-y-6">
-          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6">
+          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-md shadow-blueberry-200">
             <h2 className="text-lg font-semibold">What you can analyze</h2>
             <p className="mt-1 text-xs text-stone-400 micro-text">Supported content types</p>
             <div className="mt-4 space-y-3 text-sm leading-7 text-stone-700">
@@ -320,7 +320,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-sm shadow-blueberry-100">
+          <section className="rounded-lg border border-blueberry-200 bg-blueberry-50 p-6 shadow-md shadow-blueberry-200">
             <h2 className="text-lg font-semibold">Tips for best results</h2>
             <p className="mt-1 text-xs text-stone-400 micro-text">Optimization guide</p>
             <div className="mt-4 space-y-4 text-sm leading-7 text-stone-700">

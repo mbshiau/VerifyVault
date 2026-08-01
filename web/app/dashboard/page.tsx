@@ -96,9 +96,9 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <ul className="mt-6 divide-y divider-light overflow-hidden rounded-2xl border border-white/10 bg-white/60 shadow-[0_20px_40px_rgba(59,130,246,0.08)]">
+      <div className="mt-6 grid gap-6">
         {filtered.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-3 px-3 py-2">
+          <article key={item.id} className="flex items-center justify-between gap-3 p-4 rounded-lg border border-neutral-200 bg-white/60 backdrop-blur-sm shadow-[0_8px_24px_rgba(59,130,246,0.08)] hover:shadow-[0_12px_36px_rgba(59,130,246,0.12)] transition">
             <div className="min-w-0 flex-1">
               {renamingId === item.id ? (
                 <input
@@ -167,9 +167,9 @@ export default function DashboardPage() {
                 Delete
               </button>
             </div>
-          </li>
+          </article>
         ))}
-      </ul>
+      </div>
 
       {/* Bookmarked items section */}
       <section className="mt-8">
