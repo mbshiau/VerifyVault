@@ -110,13 +110,9 @@ export default function Home() {
     <main className="mx-auto max-w-7xl px-6 py-12 lg:py-16">
       <div className="max-w-3xl p-6 rounded-2xl bg-white/30 backdrop-blur-sm shadow-[0_20px_40px_rgba(59,130,246,0.16)] border border-white/10">
         <p className="text-sm uppercase tracking-[0.25em] text-stone-500 font-medium">VerifyVault</p>
-<<<<<<< HEAD
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight bg-gradient-to-r from-blueberry-800 via-blueberry-700 to-blueberry-800 bg-clip-text text-transparent drop-shadow-[0_6px_16px_rgba(47,56,159,0.2)]">Analyze political text and video with more clarity.</h1>
-=======
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blueberry-700 to-blueberry-400 drop-shadow-[0_6px_16px_rgba(59,130,246,0.22)]">
           Analyze political text and video with more clarity.
         </h1>
->>>>>>> 215a659e1c2e32943f2e1c252a8ede1a2165d76f
         <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">
           Paste a speech, press release, or statement or upload a video of one and get a structured breakdown of
           claims, context, and evidence.
