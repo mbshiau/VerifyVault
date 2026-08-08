@@ -204,8 +204,6 @@ def _derive_publisher(url: str) -> str | None:
 def _add_claim_row(db: Session, analysis: Analysis, claim: dict, source: str) -> Claim:
     quote = (claim.get("quote") or claim.get("text") or "").strip()
     position = analysis.original_text.find(quote) if quote else -1
-    # Allow callers (live detector) to supply start_ms/end_ms directly to avoid
-    # expensive position mapping when not needed.
     claim_row = Claim(
         analysis_id=analysis.id,
         extracted_claim=claim.get("text", ""),
@@ -219,8 +217,6 @@ def _add_claim_row(db: Session, analysis: Analysis, claim: dict, source: str) ->
         materiality=float(claim.get("materiality", 0.5)),
         position_in_text=position if position >= 0 else None,
         source=source,
-        start_ms=claim.get("start_ms") if claim.get("start_ms") is not None else None,
-        end_ms=claim.get("end_ms") if claim.get("end_ms") is not None else None,
     )
     db.add(claim_row)
     db.flush()  # assign claim_row.id so Source rows below can reference it
@@ -239,53 +235,9 @@ def _add_claim_row(db: Session, analysis: Analysis, claim: dict, source: str) ->
     return claim_row
 
 
-def persist_claims(db: Session, analysis: Analysis, claims: list[dict], source: str = "pipeline") -> None:
-    """Persist claims but avoid inserting obvious duplicates.
-
-    Dedup rules (conservative):
-    - Exact normalized text match -> skip
-    - Normalized containment (one claim text contains the other) -> skip
-    - If both have start_ms and an existing claim has start_ms within 2000ms -> treat as duplicate
-    """
-    # Build a list of existing claim normalized texts and timestamps
-    existing = []
-    for ec in analysis.claims:
-        norm = (ec.extracted_claim or "").strip().lower()
-        existing.append({"text": norm, "start_ms": getattr(ec, "start_ms", None)})
-
+def persist_claims(db: Session, analysis: Analysis, claims: list[dict]) -> None:
     for c in claims:
-        text = (c.get("text") or "").strip()
-        if not text:
-            continue
-        norm = text.lower()
-        start_ms = c.get("start_ms")
-        skip = False
-        for e in existing:
-            et = e.get("text", "")
-            est_ms = e.get("start_ms")
-            # exact match
-            if et and et == norm:
-                skip = True
-                break
-            # containment: one contains the other
-            if et and (et in norm or norm in et):
-                skip = True
-                break
-            # close timestamps -> likely same claim phrasing detected twice
-            if est_ms is not None and start_ms is not None:
-                try:
-                    if abs(int(est_ms) - int(start_ms)) <= 2000:
-                        # treat as duplicate if texts are reasonably similar (containment)
-                        if et and (et in norm or norm in et):
-                            skip = True
-                            break
-                except Exception:
-                    pass
-        if skip:
-            continue
-        # not a duplicate -> add and record in existing to avoid duplicates within this batch
-        cr = _add_claim_row(db, analysis, c, source=source)
-        existing.append({"text": (cr.extracted_claim or "").strip().lower(), "start_ms": getattr(cr, "start_ms", None)})
+        _add_claim_row(db, analysis, c, source="pipeline")
 
 
 def persist_user_selected_claim(db: Session, analysis: Analysis, claim: dict) -> Claim:

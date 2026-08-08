@@ -1,1 +1,87 @@
-^C
+INFO:     Will watch for changes in these directories: ['/Users/markshiau/Desktop/VerifyVault/api']
+INFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
+INFO:     Started reloader process [10558] using WatchFiles
+INFO:     Started server process [10564]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:49793 - "GET /api/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49806 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49808 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49812 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49810 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49827 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:49823 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:49825 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49823 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49830 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49827 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:49823 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49830 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49823 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49830 - "OPTIONS /api/public?sort=recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49833 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49823 - "GET /api/public?sort=recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49827 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/video/from-url HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "POST /api/video/from-url HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+[download]   5.3% of ~  14.58KiB at      0.00B/s ETA Unknown (frag 0/19)[download]   2.6% of ~  29.17KiB at      0.00B/s ETA Unknown (frag 1/19)INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+[download]   0.4% of ~ 461.20KiB at      0.00B/s ETA Unknown (frag 1/19)[download]   0.8% of ~ 470.70KiB at      0.00B/s ETA Unknown (frag 1/19)[download]   1.6% of ~ 489.70KiB at      0.00B/s ETA Unknown (frag 1/19)[download]   3.0% of ~ 527.70KiB at      0.00B/s ETA Unknown (frag 1/19)[download]   5.3% of ~ 603.70KiB at  185.64KiB/s ETA Unknown (frag 1/19)[download]   6.4% of ~ 755.70KiB at  185.64KiB/s ETA Unknown (frag 1/19)[download]   5.3% of ~ 915.12KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]   8.1% of ~ 608.27KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]   8.4% of ~ 614.61KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]   8.9% of ~ 627.27KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]   9.7% of ~ 652.61KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]  11.3% of ~ 703.27KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]  11.9% of ~ 804.61KiB at  185.64KiB/s ETA Unknown (frag 2/19)[download]  10.6% of ~ 909.07KiB at  185.64KiB/s ETA Unknown (frag 3/19)[download]  14.2% of ~ 682.95KiB at  385.67KiB/s ETA Unknown (frag 3/19)[download]  14.4% of ~ 687.70KiB at  385.67KiB/s ETA Unknown (frag 3/19)[download]  14.8% of ~ 697.20KiB at  385.67KiB/s ETA Unknown (frag 3/19)[download]  15.5% of ~ 716.20KiB at  385.67KiB/s ETA Unknown (frag 3/19)[download]  16.8% of ~ 754.20KiB at  385.67KiB/s ETA Unknown (frag 3/19)[download]  17.3% of ~ 830.20KiB at  385.67KiB/s ETA Unknown (frag 3/19)[download]  15.8% of ~ 909.69KiB at  385.67KiB/s ETA Unknown (frag 4/19)INFO:     127.0.0.1:49848 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+[download]  19.9% of ~ 727.44KiB at  385.67KiB/s ETA Unknown (frag 4/19)[download]  20.1% of ~ 731.24KiB at  385.67KiB/s ETA Unknown (frag 4/19)[download]  20.4% of ~ 738.84KiB at  385.67KiB/s ETA Unknown (frag 4/19)[download]  21.1% of ~ 754.04KiB at  385.67KiB/s ETA Unknown (frag 4/19)[download]  22.3% of ~ 784.44KiB at  385.67KiB/s ETA Unknown (frag 4/19)[download]  22.6% of ~ 845.24KiB at  385.67KiB/s ETA Unknown (frag 4/19)[download]  21.1% of ~ 908.52KiB at  385.67KiB/s ETA Unknown (frag 5/19)[download]  25.5% of ~ 755.90KiB at  583.43KiB/s ETA Unknown (frag 5/19)[download]  25.6% of ~ 759.07KiB at  583.43KiB/s ETA Unknown (frag 5/19)[download]  25.9% of ~ 765.40KiB at  583.43KiB/s ETA Unknown (frag 5/19)[download]  26.5% of ~ 778.07KiB at  583.43KiB/s ETA Unknown (frag 5/19)[download]  27.7% of ~ 803.40KiB at  583.43KiB/s ETA Unknown (frag 5/19)[download]  27.9% of ~ 854.07KiB at  583.43KiB/s ETA Unknown (frag 5/19)[download]  26.4% of ~ 905.60KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  30.8% of ~ 777.34KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  31.0% of ~ 780.05KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  31.3% of ~ 785.48KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  31.9% of ~ 796.34KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  33.0% of ~ 818.05KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  33.2% of ~ 861.48KiB at  583.43KiB/s ETA Unknown (frag 6/19)[download]  31.6% of ~ 906.76KiB at  583.43KiB/s ETA Unknown (frag 7/19)[download]  36.3% of ~ 792.77KiB at  583.43KiB/s ETA Unknown (frag 7/19)[download]  36.4% of ~ 795.14KiB at  583.43KiB/s ETA Unknown (frag 7/19)[download]  36.7% of ~ 799.89KiB at  783.45KiB/s ETA Unknown (frag 7/19)[download]  37.2% of ~ 809.39KiB at  783.45KiB/s ETA Unknown (frag 7/19)[download]  38.3% of ~ 828.39KiB at  783.45KiB/s ETA Unknown (frag 7/19)[download]  38.5% of ~ 866.39KiB at  783.45KiB/s ETA Unknown (frag 7/19)[download]  36.9% of ~ 905.37KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  41.6% of ~ 805.13KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  41.7% of ~ 807.24KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  42.0% of ~ 811.46KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  42.5% of ~ 819.91KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  43.6% of ~ 836.80KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  43.8% of ~ 870.57KiB at  783.45KiB/s ETA Unknown (frag 8/19)[download]  42.1% of ~ 905.58KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  46.9% of ~ 815.12KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  47.0% of ~ 817.02KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  47.3% of ~ 820.82KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  47.8% of ~ 828.42KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  48.9% of ~ 843.62KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  49.1% of ~ 874.02KiB at  783.45KiB/s ETA Unknown (frag 9/19)[download]  47.4% of ~ 905.62KiB at  783.45KiB/s ETA Unknown (frag 10/19)[download]  52.3% of ~ 822.80KiB at  973.13KiB/s ETA Unknown (frag 10/19)[download]  52.4% of ~ 824.52KiB at  973.13KiB/s ETA Unknown (frag 10/19)[download]  52.7% of ~ 827.98KiB at  973.13KiB/s ETA Unknown (frag 10/19)[download]  53.2% of ~ 834.89KiB at  973.13KiB/s ETA Unknown (frag 10/19)[download]  54.2% of ~ 848.70KiB at  973.13KiB/s ETA Unknown (frag 10/19)[download]  54.4% of ~ 876.34KiB at  973.13KiB/s ETA Unknown (frag 10/19)[download]  52.7% of ~ 904.58KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  57.5% of ~ 829.73KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  57.7% of ~ 831.31KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  57.9% of ~ 834.48KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  58.4% of ~ 840.81KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  59.4% of ~ 853.48KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  59.6% of ~ 878.81KiB at  973.13KiB/s ETA Unknown (frag 11/19)[download]  57.9% of ~ 905.22KiB at  973.13KiB/s ETA Unknown (frag 12/19)[download]  62.8% of ~ 835.68KiB at    1.10MiB/s ETA Unknown (frag 12/19)[download]  63.0% of ~ 837.14KiB at    1.10MiB/s ETA Unknown (frag 12/19)[download]  63.2% of ~ 840.06KiB at    1.10MiB/s ETA Unknown (frag 12/19)[download]  63.7% of ~ 845.91KiB at    1.10MiB/s ETA Unknown (frag 12/19)[download]  64.7% of ~ 857.60KiB at    1.10MiB/s ETA Unknown (frag 12/19)[download]  64.9% of ~ 880.99KiB at    1.10MiB/s ETA Unknown (frag 12/19)[download]  63.1% of ~ 905.46KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  68.2% of ~ 840.08KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  68.3% of ~ 841.43KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  68.6% of ~ 844.15KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  69.1% of ~ 849.58KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  70.1% of ~ 860.43KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  70.2% of ~ 882.15KiB at    1.10MiB/s ETA Unknown (frag 13/19)[download]  68.5% of ~ 904.16KiB at    1.10MiB/s ETA Unknown (frag 14/19)[download]  73.4% of ~ 844.44KiB at    1.10MiB/s ETA Unknown (frag 14/19)[download]  73.5% of ~ 845.71KiB at    1.10MiB/s ETA Unknown (frag 14/19)[download]  73.8% of ~ 848.24KiB at    1.10MiB/s ETA Unknown (frag 14/19)[download]  74.3% of ~ 853.31KiB at    1.10MiB/s ETA Unknown (frag 14/19)[download]  75.3% of ~ 863.44KiB at    1.24MiB/s ETA Unknown (frag 14/19)[download]  75.4% of ~ 883.71KiB at    1.24MiB/s ETA Unknown (frag 14/19)[download]  73.7% of ~ 904.81KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  78.7% of ~ 848.09KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  78.9% of ~ 849.28KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  79.1% of ~ 851.65KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  79.6% of ~ 856.40KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  80.6% of ~ 865.90KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  80.7% of ~ 884.90KiB at    1.24MiB/s ETA Unknown (frag 15/19)[download]  79.0% of ~ 904.52KiB at    1.24MiB/s ETA Unknown (frag 16/19)[download]  84.0% of ~ 851.34KiB at    1.24MiB/s ETA Unknown (frag 16/19)[download]  84.1% of ~ 852.45KiB at    1.24MiB/s ETA Unknown (frag 16/19)[download]  84.4% of ~ 854.69KiB at    1.24MiB/s ETA Unknown (frag 16/19)[download]  84.9% of ~ 859.16KiB at    1.24MiB/s ETA Unknown (frag 16/19)[download]  85.8% of ~ 868.10KiB at    1.24MiB/s ETA Unknown (frag 16/19)[download]  86.0% of ~ 885.98KiB at    1.35MiB/s ETA Unknown (frag 16/19)[download]  84.2% of ~ 904.47KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  89.3% of ~ 854.52KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  89.4% of ~ 855.58KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  89.6% of ~ 857.69KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  90.1% of ~ 861.91KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  91.1% of ~ 870.36KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  91.2% of ~ 887.25KiB at    1.35MiB/s ETA Unknown (frag 17/19)[download]  89.5% of ~ 905.01KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  94.6% of ~ 856.73KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  94.7% of ~ 857.73KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  95.0% of ~ 859.73KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  95.5% of ~ 863.73KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  96.4% of ~ 871.73KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  96.5% of ~ 887.73KiB at    1.35MiB/s ETA Unknown (frag 18/19)[download]  94.8% of ~ 903.90KiB at    1.35MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 857.73KiB at    1.43MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 859.73KiB at    1.43MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 863.73KiB at    1.43MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 871.73KiB at    1.43MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 887.73KiB at    1.43MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 890.76KiB at    1.43MiB/s ETA Unknown (frag 19/19)[download] 100.0% of ~ 890.76KiB at    1.43MiB/s ETA Unknown (frag 20/19)[download] 100% of  890.76KiB in 00:00:00 at 1.65MiB/s                                                                         INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "OPTIONS /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49839 - "GET /api/analysis/3995d107-accf-49db-b496-5123235a4224 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'analysis/service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [10564]
+INFO:     Started server process [11856]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:49915 - "GET /api/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49983 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49985 - "POST /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49983 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49985 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
