@@ -201,9 +201,35 @@ def _derive_publisher(url: str) -> str | None:
     return urlparse(url).netloc or None
 
 
+# The model sometimes emits a claim's quote with "smart"/typographic
+# punctuation (curly quotes, en/em dashes, non-breaking hyphens) even when
+# the source text uses the plain ASCII form (or vice versa), which makes an
+# exact substring .find() miss a quote that's really there character-for-
+# character otherwise - concretely observed with "El-Sayed" (plain hyphen)
+# in the source vs "El‑Sayed" (U+2011 non-breaking hyphen) in the quote,
+# silently leaving position_in_text (and therefore claim ordering) null.
+# Every mapping here is one character to one character, so translating
+# both sides can't shift any offsets - a match's index is still valid
+# against the original, untranslated text.
+_QUOTE_MATCH_TRANSLATION = str.maketrans(
+    {
+        "‘": "'", "’": "'",  # ‘ ’
+        "“": '"', "”": '"',  # “ ”
+        "–": "-", "—": "-", "‑": "-", "−": "-",  # – — ‑ −
+        " ": " ",  # nbsp
+    }
+)
+
+
+def _normalize_for_match(s: str) -> str:
+    return s.translate(_QUOTE_MATCH_TRANSLATION)
+
+
 def _add_claim_row(db: Session, analysis: Analysis, claim: dict, source: str) -> Claim:
     quote = (claim.get("quote") or claim.get("text") or "").strip()
-    position = analysis.original_text.find(quote) if quote else -1
+    position = (
+        _normalize_for_match(analysis.original_text).find(_normalize_for_match(quote)) if quote else -1
+    )
     claim_row = Claim(
         analysis_id=analysis.id,
         extracted_claim=claim.get("text", ""),

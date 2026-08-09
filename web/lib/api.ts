@@ -25,6 +25,7 @@ export type Claim = {
   confidence_explanation?: string;
   materiality?: number;
   source?: string;
+  position_in_text?: number | null;
   start_ms?: number | null;
   end_ms?: number | null;
   sources: Source[];

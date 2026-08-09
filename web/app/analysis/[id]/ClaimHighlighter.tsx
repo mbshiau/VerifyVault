@@ -73,7 +73,7 @@ export function ClaimHighlightedText({
             key={`${baseIndex}-${startInSlice}`}
             className={`inline-block ${onWordClick ? 'cursor-pointer' : ''}`}
             onMouseDown={onWordClick ? (e) => e.preventDefault() : undefined}
-            onClick={(e) => { e.stopPropagation(); if (onWordClick) onWordClick(globalIndex); }}
+            onClick={(e) => { if (onWordClick) { e.stopPropagation(); onWordClick(globalIndex); } }}
             role={onWordClick ? "button" : undefined}
             tabIndex={onWordClick ? 0 : undefined}
           >

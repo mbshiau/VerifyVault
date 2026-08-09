@@ -29,6 +29,21 @@ import { renameAnalysis } from "@/lib/api";
 
 const VIDEO_IN_PROGRESS_STATUSES: readonly string[] = VIDEO_PROCESSING_STATUSES;
 
+// Mirrors the backend's _ordered_claims (api/analysis/schemas.py): chronological
+// by start_ms for video, position_in_text for text, with claims missing that
+// position (e.g. a just-added user-selected claim, or an unmatched quote)
+// sorted to the end rather than colliding at the front.
+function sortClaimsChronologically(claims: Claim[], isVideo: boolean): Claim[] {
+  return [...claims].sort((a, b) => {
+    const av = isVideo ? a.start_ms : a.position_in_text;
+    const bv = isVideo ? b.start_ms : b.position_in_text;
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return av - bv;
+  });
+}
+
 export default function AnalysisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user, loading: authLoading } = useAuth();
@@ -77,7 +92,10 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     };
   }, [id]);
 
-  const allClaims = useMemo(() => (data ? [...selectedClaims, ...data.claims] : selectedClaims), [data, selectedClaims]);
+  const allClaims = useMemo(
+    () => (data ? sortClaimsChronologically([...selectedClaims, ...data.claims], data.source_type === "video") : selectedClaims),
+    [data, selectedClaims]
+  );
   const { spans } = useMemo(
     () => (data ? matchClaimsToText(data.text, allClaims) : { spans: [], unmatched: [] }),
     [data, allClaims]
@@ -211,22 +229,22 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       const result = await analyzeSelectedClaim(data.id, selectedText);
       if (result.is_claim && result.claim) {
         const normalizedQuote = (result.claim.quote || result.claim.text || "").trim().toLowerCase();
-        const existingIndexInSelected = selectedClaims.findIndex(
-          (c) => ((c.quote || c.text || "").trim().toLowerCase() === normalizedQuote)
-        );
-        const existingIndexInDetected = data.claims.findIndex(
-          (c) => ((c.quote || c.text || "").trim().toLowerCase() === normalizedQuote)
-        );
-        if (existingIndexInSelected >= 0) {
-          setSelectedClaimIndex(existingIndexInSelected);
-        } else if (existingIndexInDetected >= 0) {
-          setSelectedClaimIndex(selectedClaims.length + existingIndexInDetected);
-        } else {
-          const nextSelected = [...selectedClaims, result.claim];
+        const matchesQuote = (c: Claim) => (c.quote || c.text || "").trim().toLowerCase() === normalizedQuote;
+        const alreadyExists = selectedClaims.some(matchesQuote) || data.claims.some(matchesQuote);
+
+        let nextSelected = selectedClaims;
+        if (!alreadyExists) {
+          nextSelected = [...selectedClaims, result.claim];
           setSelectedClaims(nextSelected);
-          setSelectedClaimIndex(nextSelected.length - 1);
-          setExpandedClaimIndex(nextSelected.length - 1);
         }
+
+        const sorted = sortClaimsChronologically([...nextSelected, ...data.claims], data.source_type === "video");
+        const finalIndex = sorted.findIndex(matchesQuote);
+        setSelectedClaimIndex(finalIndex);
+        if (!alreadyExists) {
+          setExpandedClaimIndex(finalIndex);
+        }
+
         setSelectedText("");
         setSelectionRect(null);
       } else {

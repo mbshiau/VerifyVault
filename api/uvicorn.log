@@ -85,3 +85,126 @@ INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c5771
 INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:49988 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:49990 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50096 - "GET /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50097 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50100 - "OPTIONS /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50097 - "GET /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50100 - "OPTIONS /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50097 - "GET /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50100 - "OPTIONS /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50097 - "GET /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50100 - "OPTIONS /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50097 - "GET /api/analysis/5053e9a0-bbc6-4cc9-8905-96992c5bdfd0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50097 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:50109 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:50097 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:50110 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50109 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50100 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50109 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50114 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50114 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50120 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50118 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50150 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50152 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50162 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50164 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50169 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50176 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50178 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50198 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50201 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50204 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50206 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50204 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50214 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:50216 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:50214 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50216 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50218 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50221 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50221 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50216 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50218 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50223 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50223 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50229 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50231 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52612 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52613 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52653 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52655 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52657 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52659 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52666 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52666 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52670 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52668 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52721 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52723 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52818 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52820 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52829 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52830 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52830 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52832 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52829 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52836 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52837 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52829 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52832 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52842 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52842 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52848 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52846 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52852 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52844 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52844 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52855 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52857 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'analysis/service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [11856]
+INFO:     Started server process [42691]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:52942 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52947 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52955 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52957 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52959 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52957 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52955 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52971 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52972 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52973 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52972 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52971 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52977 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52978 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52972 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52971 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52983 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52983 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52985 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52987 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53054 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53055 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53059 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53058 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53058 - "GET /api/analysis HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:53064 - "GET /api/bookmarks HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:53064 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53059 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53058 - "POST /auth/refresh HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53055 - "OPTIONS /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53055 - "OPTIONS /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53058 - "GET /api/analysis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53059 - "GET /api/bookmarks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53055 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53054 - "OPTIONS /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53059 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53058 - "GET /api/analysis/8494886a-61d2-43ef-bcf5-c57713e73ce8 HTTP/1.1" 200 OK
