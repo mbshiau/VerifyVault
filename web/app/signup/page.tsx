@@ -32,64 +32,81 @@ export default function SignupPage() {
   const googleHref = `${API_URL}/auth/google/login`;
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-16">
-      <h1 className="text-2xl font-semibold text-black">Create an account</h1>
-      <p className="mt-2 text-sm text-stone-600">Save and revisit your analyses.</p>
+    <main className="mx-auto max-w-md px-6 py-16 lg:py-24">
+      <div className="rounded-2xl border border-white/10 bg-white/60 backdrop-blur-sm p-8 shadow-[0_20px_40px_rgba(59,130,246,0.16)]">
+        <p className="text-sm uppercase tracking-[0.25em] text-stone-500 font-medium">VerifyVault</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-black">Create an account</h1>
+        <p className="mt-2 text-sm text-stone-600">Save and revisit your analyses.</p>
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name (optional)"
-          className="w-full rounded-md border border-stone-200 bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
-        />
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-          className="w-full rounded-md border border-stone-200 bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password (min. 8 characters)"
-          required
-          minLength={8}
-          maxLength={72}
-          className="w-full rounded-md border border-stone-200 bg-white p-3 text-sm text-stone-900 focus:border-blueberry-600 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-blueberry-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+        <form onSubmit={onSubmit} className="mt-8 space-y-4">
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-black">Name</span>
+            <p className="text-xs text-stone-400">Optional</p>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jane Smith"
+              className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-black">Email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-black">Password</span>
+            <p className="text-xs text-stone-400">Minimum 8 characters</p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={8}
+              maxLength={72}
+              className="w-full rounded-md border divider-light bg-stone-50 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-blueberry-600 focus:bg-white"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-md bg-blueberry-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blueberry-400 transition hover:bg-blueberry-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? "Creating account..." : "Create account"}
+          </button>
+          {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
+        </form>
+
+        <div className="mt-6 flex items-center gap-3 text-xs text-stone-400">
+          <div className="h-px flex-1 bg-stone-200" />
+          or
+          <div className="h-px flex-1 bg-stone-200" />
+        </div>
+
+        <a
+          href={googleHref}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-md border divider-light bg-white px-6 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
         >
-          {loading ? "Creating account..." : "Create account"}
-        </button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </form>
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.91 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
+          </svg>
+          Sign up with Google
+        </a>
 
-      <div className="mt-4 flex items-center gap-3 text-xs text-stone-400">
-        <div className="h-px flex-1 bg-stone-200" />
-        or
-        <div className="h-px flex-1 bg-stone-200" />
+        <p className="mt-6 text-center text-sm text-stone-600">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-blueberry-600 hover:text-blueberry-700 transition">
+            Sign in
+          </Link>
+        </p>
       </div>
-
-      <a
-        href={googleHref}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium hover:bg-stone-50"
-      >
-        Sign up with Google
-      </a>
-
-      <p className="mt-6 text-sm text-stone-600">
-        Already have an account?{" "}
-        <Link href="/login" className="font-medium text-black underline">
-          Sign in
-        </Link>
-      </p>
     </main>
   );
 }

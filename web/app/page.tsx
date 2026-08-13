@@ -326,11 +326,23 @@ export default function Home() {
             <div className="mt-4 space-y-4 text-sm leading-7 text-stone-700">
               <p>Keep the source text intact so claims can be matched cleanly.</p>
               <p>Add a speaker and date when you know them to improve context.</p>
-              <p>Whitespace and line breaks are fine — they make review easier.</p>
+              <p>Whitespace and line breaks are fine.</p>
               <p>For video, transcription and claim detection can take a few minutes for longer uploads.</p>
             </div>
           </section>
         </aside>
+      </div>
+
+      <div className="mt-16 flex justify-center">
+        <div className="relative inline-block">
+          {/* Futuristic glow background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-blue-500/20 blur-xl rounded-full" />
+          
+          {/* Credit text with gradient and animation */}
+          <p className="relative text-center text-sm tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 font-medium px-8 py-4">
+            Designed by Mark Shiau, Olivia Antenucci, and Eva Li
+          </p>
+        </div>
       </div>
     </main>
   );
