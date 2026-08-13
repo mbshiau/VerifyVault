@@ -151,6 +151,10 @@ def run_video_pipeline_task(analysis_id: UUID) -> None:
     get start_ms/end_ms. Uses its own DB session, like
     analysis.service.run_pipeline_task, since it runs after the request that
     spawned it returns.
+    
+    For YouTube videos, attempts to use the official transcript first (which has
+    less frequent timestamps and proper punctuation). Falls back to Whisper
+    transcription if unavailable.
     """
     db = SessionLocal()
     try:
@@ -161,19 +165,35 @@ def run_video_pipeline_task(analysis_id: UUID) -> None:
         try:
             row.status = "extracting_audio"
             db.commit()
-            audio_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.audio.mp3")
-            try:
-                if video.source == "upload":
-                    media.extract_audio(video.storage_path, audio_path)
-                else:
-                    media.download_remote_audio(video.source_url, audio_path)
+            
+            transcript_result = None
+            
+            # Try YouTube transcript first for YouTube videos
+            if video.source == "youtube" and video.source_url:
+                try:
+                    row.status = "fetching_youtube_transcript"
+                    db.commit()
+                    transcript_result = media.fetch_youtube_transcript(video.source_url)
+                except Exception:
+                    transcript_result = None
+            
+            # Fall back to Whisper transcription if YouTube transcript unavailable
+            if transcript_result is None:
+                audio_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.audio.mp3")
+                try:
+                    row.status = "extracting_audio"
+                    db.commit()
+                    if video.source == "upload":
+                        media.extract_audio(video.storage_path, audio_path)
+                    else:
+                        media.download_remote_audio(video.source_url, audio_path)
 
-                row.status = "transcribing"
-                db.commit()
-                transcript_result = media.transcribe(audio_path)
-            finally:
-                if os.path.exists(audio_path):
-                    os.remove(audio_path)
+                    row.status = "transcribing"
+                    db.commit()
+                    transcript_result = media.transcribe(audio_path)
+                finally:
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)
 
             transcript_text = transcript_result["text"].strip()
             if not transcript_text:

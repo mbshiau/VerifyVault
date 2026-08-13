@@ -1,5 +1,6 @@
 import concurrent.futures
 import json
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -130,6 +131,143 @@ def download_remote_audio(url: str, out_path: str) -> None:
         extract_audio(str(downloaded), out_path)
 
 
+def fetch_youtube_transcript(url: str) -> dict | None:
+    """Attempts to fetch the official YouTube transcript if available.
+    Returns {"text": str, "segments": [{"text": str, "start_ms": int, "end_ms": int}, ...]} or None.
+    """
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "writesubtitles": True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info or "subtitles" not in info:
+                return None
+            
+            # Try to get English subtitles first, then any available language
+            subtitles = info.get("subtitles", {}) or {}
+            subs_lang = None
+            if "en" in subtitles:
+                subs_lang = "en"
+            elif "en-US" in subtitles:
+                subs_lang = "en-US"
+            elif subtitles:
+                subs_lang = next(iter(subtitles.keys()))
+            
+            if not subs_lang:
+                return None
+            
+            sub_list = subtitles.get(subs_lang, [])
+            if not sub_list:
+                return None
+            
+            # Parse VTT format (yt-dlp returns VTT by default)
+            segments = []
+            text_parts = []
+            cursor = 0
+            
+            for sub in sub_list:
+                text = (sub.get("text") or "").strip()
+                if not text:
+                    continue
+                
+                # Convert timestamps from seconds to milliseconds
+                start_ms = int(float(sub.get("start", 0)) * 1000)
+                end_ms = int(float(sub.get("end", 0)) * 1000)
+                
+                if text_parts:
+                    text_parts.append(" ")
+                    cursor += 1
+                
+                start_char = cursor
+                text_parts.append(text)
+                cursor += len(text)
+                
+                segments.append({
+                    "text": text,
+                    "start_ms": start_ms,
+                    "end_ms": end_ms,
+                    "start_char": start_char,
+                    "end_char": cursor,
+                })
+            
+            merged_text = "".join(text_parts)
+            return {"text": merged_text, "segments": segments} if segments else None
+    except Exception:
+        return None
+
+
+def _add_sentence_punctuation(text: str) -> str:
+    """Add periods to sentences that lack ending punctuation."""
+    # Split on common sentence boundaries but preserve them
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
+    result = []
+    
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+        # Add period if sentence doesn't end with punctuation
+        if not re.search(r'[.!?]$', sent):
+            sent += '.'
+        result.append(sent)
+    
+    return ' '.join(result)
+
+
+def _create_sentence_segments(text: str, segments: list[dict]) -> list[dict]:
+    """Create segments at sentence boundaries using original segment timestamps.
+    
+    Maps sentences to the closest available timestamp from Whisper segments.
+    """
+    # Split text into sentences
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
+    
+    new_segments = []
+    cursor = 0
+    
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+        
+        # Ensure sentence ends with punctuation
+        if not re.search(r'[.!?]$', sent):
+            sent += '.'
+        
+        start_char = cursor
+        end_char = cursor + len(sent)
+        
+        # Find overlapping segments to get timing
+        start_ms = None
+        end_ms = None
+        
+        for seg in segments:
+            seg_start_char = seg.get("start_char", 0)
+            seg_end_char = seg.get("end_char", 0)
+            
+            # If sentence overlaps with this segment, use its timing
+            if seg_start_char < end_char and seg_end_char > start_char:
+                if start_ms is None:
+                    start_ms = seg.get("start_ms", 0)
+                end_ms = seg.get("end_ms", 0)
+        
+        if start_ms is None:
+            start_ms = 0
+        if end_ms is None:
+            end_ms = start_ms
+        
+        new_segments.append({
+            "text": sent,
+            "start_ms": start_ms,
+            "end_ms": end_ms,
+            "start_char": start_char,
+            "end_char": end_char,
+        })
+        
+        cursor = end_char + 1  # +1 for the space between sentences
+    
+    return new_segments
+
+
+
 def _split_audio(audio_path: str, chunk_dir: str) -> list[str]:
     pattern = str(Path(chunk_dir) / "chunk_%04d.mp3")
     try:
@@ -216,7 +354,13 @@ def transcribe(audio_path: str) -> dict:
             cursor += len(seg["text"])
             merged_segments.append({**seg, "start_char": start_char, "end_char": cursor})
 
-    return {"text": "".join(text_parts), "segments": merged_segments}
+    raw_text = "".join(text_parts)
+    
+    # Add punctuation and create sentence-level segments
+    punctuated_text = _add_sentence_punctuation(raw_text)
+    sentence_segments = _create_sentence_segments(punctuated_text, merged_segments)
+
+    return {"text": punctuated_text, "segments": sentence_segments}
 
 
 def char_offset_to_ms(segments: list[dict], char_offset: int | None, edge: str = "start") -> int | None:
