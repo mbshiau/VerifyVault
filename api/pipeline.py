@@ -10,6 +10,7 @@ from openai import OpenAI
 from config import settings
 
 client = OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url or None)
+xai_client = OpenAI(api_key=settings.xai_api_key, base_url=settings.xai_base_url)
 
 
 _PRESIDENT_TRANSITION = date(2025, 1, 20)
@@ -1558,3 +1559,52 @@ def run(text: str, speaker: str | None = None, speech_date: date | None = None) 
         result["entity_details"] = [f.result() for f in entity_futures]
 
     return result
+
+
+def xai_second_opinion(text: str, claims: list[dict], summary: str) -> dict:
+    """Ask Grok to independently challenge an existing evidence report.
+
+    This is intentionally separate from the primary extraction pipeline: the
+    second model sees the report and sources, but cannot change persisted claims.
+    """
+    if not settings.xai_api_key:
+        raise RuntimeError("xAI is not configured")
+    compact_claims = [
+        {
+            "claim": c.get("text", ""),
+            "confidence": c.get("confidence", 0.5),
+            "sources": [{"title": s.get("title", ""), "url": s.get("url", "")} for s in c.get("sources", [])[:3]],
+        }
+        for c in claims[:30]
+    ]
+    response = xai_client.chat.completions.create(
+        model=settings.xai_model,
+        temperature=0.1,
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an adversarial fact-checking editor. Review an existing political "
+                    "fact-check report without inventing evidence. Identify the most important "
+                    "weaknesses, contradictions, missing context, and source-quality concerns. "
+                    "Return JSON with keys: overall_assessment (string), risk_level "
+                    "(low|medium|high), strengths (array of strings), challenges (array of "
+                    "objects with claim, issue, severity, recommendation), and questions "
+                    "(array of strings). Be concise and evidence-aware."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Original text:\n{text[:30000]}\n\n"
+                    f"Primary summary:\n{summary}\n\n"
+                    f"Primary claims and sources:\n{json.dumps(compact_claims)}"
+                ),
+            },
+        ],
+    )
+    content = response.choices[0].message.content
+    if not content:
+        raise RuntimeError("xAI returned an empty review")
+    return json.loads(content)

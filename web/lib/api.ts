@@ -112,6 +112,14 @@ export type SelectedClaimAnalysis = {
   claim: Claim | null;
 };
 
+export type XaiChallenge = {
+  overall_assessment: string;
+  risk_level: "low" | "medium" | "high";
+  strengths: string[];
+  challenges: { claim?: string; issue?: string; severity?: string; recommendation?: string }[];
+  questions: string[];
+};
+
 export type PublicAnalysisListItem = {
   id: string;
   title: string;
@@ -191,6 +199,12 @@ export async function createAnalysis(text: string, speaker?: string, speechDate?
 
 export async function getAnalysis(id: string): Promise<Analysis> {
   const r = await apiFetch(`/api/analysis/${id}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(await readErrorMessage(r));
+  return r.json();
+}
+
+export async function requestXaiChallenge(id: string): Promise<XaiChallenge> {
+  const r = await apiFetch(`/api/analysis/${id}/xai-challenge`, { method: "POST" });
   if (!r.ok) throw new Error(await readErrorMessage(r));
   return r.json();
 }
@@ -408,7 +422,6 @@ export async function analyzeSelectedClaim(id: string, selectedText: string): Pr
   if (!r.ok) throw new Error(await readErrorMessage(r));
   return r.json();
 }
-
 
 
 

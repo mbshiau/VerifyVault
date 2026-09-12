@@ -100,6 +100,13 @@ export default function SignupPage() {
           Sign up with Google
         </a>
 
+        <a
+          href={`${API_URL}/auth/auth0/login`}
+          className="mt-3 flex w-full items-center justify-center rounded-md border border-blueberry-200 bg-blueberry-50 px-6 py-3 text-sm font-semibold text-blueberry-800 transition hover:bg-blueberry-100"
+        >
+          Create account with Auth0
+        </a>
+
         <p className="mt-6 text-center text-sm text-stone-600">
           Already have an account?{" "}
           <Link href="/login" className="font-semibold text-blueberry-600 hover:text-blueberry-700 transition">

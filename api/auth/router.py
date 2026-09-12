@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from auth.deps import get_current_user
-from auth.oauth import find_or_create_google_user, oauth
+from auth.oauth import find_or_create_auth0_user, find_or_create_google_user, oauth
 from auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserOut
 from auth.security import (
     create_access_token,
@@ -161,6 +161,35 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     # the frontend - no token ever appears in a URL/query string. The
     # frontend calls /auth/refresh immediately after landing to mint an
     # access token into memory from that cookie.
+    redirect = RedirectResponse(url=f"{settings.frontend_url}/auth/callback")
+    _issue_tokens(redirect, db, user)
+    return redirect
+
+
+@router.get("/auth0/login")
+async def auth0_login(request: Request):
+    if not settings.auth0_domain or not settings.auth0_client_id:
+        raise HTTPException(503, "Auth0 is not configured")
+    return await oauth.auth0.authorize_redirect(
+        request,
+        settings.auth0_callback_url,
+        audience=settings.auth0_audience or None,
+    )
+
+
+@router.get("/auth0/callback")
+async def auth0_callback(request: Request, db: Session = Depends(get_db)):
+    try:
+        token = await oauth.auth0.authorize_access_token(request)
+    except OAuthError:
+        raise HTTPException(400, "Auth0 authentication failed")
+    userinfo = token.get("userinfo") or {}
+    if not userinfo.get("sub"):
+        raise HTTPException(400, "Auth0 account missing required identity information")
+    try:
+        user = find_or_create_auth0_user(db, userinfo)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     redirect = RedirectResponse(url=f"{settings.frontend_url}/auth/callback")
     _issue_tokens(redirect, db, user)
     return redirect

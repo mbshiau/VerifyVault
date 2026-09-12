@@ -12,6 +12,7 @@ from analysis.schemas import (
     AnalyzeSelectedClaimRequest,
     AnalyzeSelectedClaimResponse,
     ClaimOut,
+    XaiChallengeOut,
     RenameAnalysisRequest,
     SharedAnalysisOut,
     VisibilityRequest,
@@ -127,6 +128,32 @@ def analyze_selected_claim(
         return AnalyzeSelectedClaimResponse(is_claim=False, reason=result.get("reason", ""), claim=None)
     claim_row = service.persist_user_selected_claim(db, row, result["claim"])
     return AnalyzeSelectedClaimResponse(is_claim=True, reason="", claim=ClaimOut.from_orm_claim(claim_row))
+
+
+@router.post("/{analysis_id}/xai-challenge", response_model=XaiChallengeOut)
+def xai_challenge(
+    analysis_id: UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+):
+    row = service.get_accessible_analysis(db, analysis_id, user)
+    if row.status != "complete":
+        raise HTTPException(409, "analysis is not complete yet")
+    try:
+        return pipeline.xai_second_opinion(
+            row.original_text,
+            [
+                {
+                    "text": claim.extracted_claim,
+                    "confidence": claim.confidence,
+                    "sources": [{"title": source.title, "url": source.url} for source in claim.sources],
+                }
+                for claim in row.claims
+            ],
+            row.summary,
+        )
+    except Exception as exc:
+        raise HTTPException(502, "xAI review is currently unavailable") from exc
 
 
 @router.post("/{analysis_id}/claim-ownership", response_model=AnalysisOut)
