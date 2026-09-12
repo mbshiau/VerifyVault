@@ -11,8 +11,6 @@ import {
   findMoreSources,
   getAnalysis,
   getVideoFileUrl,
-  requestXaiChallenge,
-  XaiChallenge,
 } from "@/lib/api";
 import { matchClaimsToText } from "@/lib/highlight";
 import { useAuth } from "@/lib/auth";
@@ -75,9 +73,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   const videoPlayerRef = useRef<VideoPlayerHandle>(null);
   const segmentRefs = useRef<Map<number, HTMLElement>>(new Map());
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
-  const [xaiReview, setXaiReview] = useState<XaiChallenge | null>(null);
-  const [xaiReviewLoading, setXaiReviewLoading] = useState(false);
-  const [xaiReviewError, setXaiReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -309,19 +304,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
     } finally {
       setFindingMoreSourcesFor(null);
     }
-
-    async function handleXaiChallenge() {
-      if (!data || xaiReviewLoading) return;
-      setXaiReviewLoading(true);
-      setXaiReviewError(null);
-      try {
-        setXaiReview(await requestXaiChallenge(data.id));
-      } catch (e) {
-        setXaiReviewError(e instanceof Error ? e.message : "xAI review failed.");
-      } finally {
-        setXaiReviewLoading(false);
-      }
-    }
   }
 
   if (error)
@@ -415,47 +397,6 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
       )}
 
       {!authLoading && !user && data.user_id === null && <SaveGuestAnalysisBanner analysisId={data.id} />}
-
-      {data.status === "complete" && (
-        <section className="mt-6 rounded-xl border border-sky-200 bg-sky-50/70 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-semibold text-sky-950">Grok adversarial review</h2>
-              <p className="mt-1 text-sm text-sky-800">
-                Get an independent challenge to the report: weak evidence, missing context, and source disagreements.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleXaiChallenge}
-              disabled={xaiReviewLoading}
-              className="rounded-md bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-50"
-            >
-              {xaiReviewLoading ? "Reviewing..." : xaiReview ? "Run again" : "Challenge with Grok"}
-            </button>
-          </div>
-          {xaiReviewError && <p className="mt-3 text-sm font-medium text-red-700">{xaiReviewError}</p>}
-          {xaiReview && (
-            <div className="mt-4 space-y-3 text-sm text-sky-950">
-              <p><strong>Risk level:</strong> {xaiReview.risk_level}</p>
-              <p>{xaiReview.overall_assessment}</p>
-              {xaiReview.challenges.length > 0 && (
-                <div>
-                  <p className="font-semibold">Challenges</p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5">
-                    {xaiReview.challenges.map((challenge, index) => (
-                      <li key={`${challenge.claim}-${index}`}>
-                        {challenge.issue || challenge.claim || "Review this claim."}
-                        {challenge.recommendation ? ` ${challenge.recommendation}` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      )}
 
       {isVideo && (videoInProgress || videoFailed) ? (
         <div className="mt-8">

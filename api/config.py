@@ -11,15 +11,6 @@ class Settings(BaseSettings):
     openai_base_url: str = ""
     openai_model: str = "gpt-oss-120b"
     tavily_api_key: str = ""
-    xai_api_key: str = ""
-    xai_model: str = "grok-4"
-    xai_base_url: str = "https://api.x.ai/v1"
-    auth0_domain: str = ""
-    auth0_client_id: str = ""
-    auth0_client_secret: str = ""
-    auth0_audience: str = ""
-    auth0_callback_url: str = "http://localhost:8000/auth/auth0/callback"
-    auth0_logout_url: str = "http://localhost:3000"
     # Kept as a raw comma-separated string (not list[str]) since this
     # pydantic-settings version JSON-decodes complex-typed env vars by
     # default, which chokes on a plain comma-separated value.

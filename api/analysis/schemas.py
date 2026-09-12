@@ -202,11 +202,3 @@ class AnalyzeSelectedClaimResponse(BaseModel):
     is_claim: bool
     reason: str = ""
     claim: ClaimOut | None = None
-
-
-class XaiChallengeOut(BaseModel):
-    overall_assessment: str
-    risk_level: Literal["low", "medium", "high"]
-    strengths: list[str] = []
-    challenges: list[dict] = []
-    questions: list[str] = []
