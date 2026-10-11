@@ -36,12 +36,16 @@ def _cookie_is_secure() -> bool:
 
 def _set_refresh_cookie(response: Response, token: str, expires_at: datetime, remember_me: bool) -> None:
     max_age = int((expires_at - datetime.now(timezone.utc)).total_seconds()) if remember_me else None
+    # For local development keep Lax so the browser will accept the cookie without HTTPS.
+    # For cross-site production deployments set SameSite=None and Secure=True so
+    # cookies are sent on cross-origin fetch requests with credentials.
+    samesite_val = "lax" if settings.frontend_url.startswith("http://localhost") else "none"
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=token,
         httponly=True,
         secure=_cookie_is_secure(),
-        samesite="lax",
+        samesite=samesite_val,
         max_age=max_age,
         path=REFRESH_COOKIE_PATH,
     )
