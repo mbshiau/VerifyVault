@@ -1,6 +1,8 @@
 import concurrent.futures
+import functools
 import json
 import re
+import time
 from datetime import date
 from urllib.parse import urlparse
 
@@ -716,6 +718,57 @@ def _mentions_other_state(url: str, claim_state: str | None) -> bool:
     return False
 
 
+# Shared, connection-pooled client for every Tavily call - a bare module-level
+# httpx.post() (the previous approach) pays a fresh TCP+TLS handshake on every
+# single request, which is especially wasteful here since up to
+# MAX_PARALLEL_WORKERS claims search Tavily concurrently for every analysis.
+# Keeping connections alive across calls cuts that handshake cost to ~once.
+_tavily_client = httpx.Client(
+    timeout=20.0,
+    limits=httpx.Limits(max_connections=20, max_keepalive_connections=20),
+)
+
+
+def _tavily_search_raw(query: str, max_results: int) -> list[dict]:
+    """Raw Tavily search, shared by search_sources/search_entity_sources (both
+    posted the same request shape independently before). Cached because the
+    same query frequently recurs - duplicate/paraphrased claims within one
+    speech, or a claim's primary and fallback query overlapping - and an
+    identical Tavily query always returns the same page of results, so a
+    repeat is a pure wasted round trip rather than a freshness concern.
+
+    Retries once on a transient network error or 5xx - without this, a single
+    dropped connection during a concurrent burst used to silently zero out
+    that claim's sources entirely (see _fact_check_claim's broad except).
+    """
+    payload = {
+        "api_key": settings.tavily_api_key,
+        "query": query,
+        "max_results": max_results,
+        "search_depth": "basic",
+        "include_answer": False,
+        "exclude_domains": SOCIAL_MEDIA_DOMAINS,
+    }
+    last_exc: Exception | None = None
+    for attempt in range(2):
+        try:
+            r = _tavily_client.post("https://api.tavily.com/search", json=payload)
+            r.raise_for_status()
+            return r.json().get("results", [])
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code < 500:
+                raise  # not transient (bad key, bad request, etc.) - retrying won't help
+            last_exc = e
+        except httpx.TransportError as e:
+            last_exc = e
+        if attempt == 0:
+            time.sleep(0.3)
+    raise last_exc
+
+
+_tavily_search_cached = functools.lru_cache(maxsize=512)(_tavily_search_raw)
+
+
 def search_sources(
     query: str,
     k: int = 3,
@@ -725,21 +778,7 @@ def search_sources(
 ) -> list[dict]:
     if not settings.tavily_api_key:
         return []
-    r = httpx.post(
-        "https://api.tavily.com/search",
-        json={
-            "api_key": settings.tavily_api_key,
-            "query": query,
-            "max_results": k * 4,
-            "search_depth": "basic",
-            "include_answer": False,
-            "exclude_domains": SOCIAL_MEDIA_DOMAINS,
-        },
-        timeout=20.0,
-    )
-    r.raise_for_status()
-    data = r.json()
-    results = data.get("results", [])
+    results = _tavily_search_cached(query, k * 4)
     # Drop the speaker's own official/campaign site - it's a primary source, not
     # independent verification, and otherwise tends to crowd out real coverage.
     speaker_slugs = _speaker_name_slugs(speaker)
@@ -1054,21 +1093,7 @@ def search_entity_sources(entity_name: str, entity_type: str, k: int = 3) -> lis
     query = type_hints.get(entity_type, entity_name)
 
     try:
-        r = httpx.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": settings.tavily_api_key,
-                "query": query,
-                "max_results": k * 4,
-                "search_depth": "basic",
-                "include_answer": False,
-                "exclude_domains": SOCIAL_MEDIA_DOMAINS,
-            },
-            timeout=20.0,
-        )
-        r.raise_for_status()
-        data = r.json()
-        results = data.get("results", [])
+        results = _tavily_search_cached(query, k * 4)
 
         # Filter: must have content, exclude homepages and short snippets
         def _is_valid_result(x: dict) -> bool:
@@ -1520,8 +1545,34 @@ def _build_entity_detail(
     }
 
 
+def _verify_jurisdiction(text: str, jurisdiction: str | None) -> str | None:
+    """Catches a specific LLM failure mode: the model infers jurisdiction partly
+    from its own world knowledge (e.g. recognizing a bill name), and that
+    knowledge-based guess can override clear textual evidence when a law's
+    *generic* name happens to strongly match a different, more famous law
+    elsewhere - observed concretely with a North Carolina speech (NC named
+    a dozen times, no mention of Idaho anywhere) where the model nonetheless
+    returned jurisdiction="Idaho", because "Fairness in Women's Sports Act"-
+    style naming is most strongly associated with Idaho's well-known 2020 law.
+    That single wrong word then gets appended to every claim's search query
+    in _rank_claim_sources, silently redirecting sources to the wrong state.
+
+    If the model's chosen state never appears as literal text in the
+    document but a different state clearly does, trust the document.
+    """
+    normalized = (jurisdiction or "").strip().lower()
+    if normalized not in _US_STATES:
+        return jurisdiction  # "federal"/empty/not-a-state - nothing to cross-check
+    text_lower = text.lower()
+    if re.search(rf"\b{re.escape(normalized)}\b", text_lower):
+        return jurisdiction  # model's answer is actually backed by the text
+    mentioned = _mentioned_state(text)
+    return mentioned if mentioned else jurisdiction
+
+
 def run(text: str, speaker: str | None = None, speech_date: date | None = None) -> dict:
     result = extract(text, speaker, speech_date)
+    result["jurisdiction"] = _verify_jurisdiction(text, result.get("jurisdiction"))
     # Order by materiality (highest first) but don't cap the count - longer
     # speeches legitimately surface more claims, and a fixed cap would drop
     # real ones instead of just deprioritizing low-stakes ones in the UI.

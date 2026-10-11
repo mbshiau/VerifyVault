@@ -24,6 +24,7 @@ import { YouTubePlayer } from "./YouTubePlayer";
 import { TweetEmbed } from "./TweetEmbed";
 import { TranscriptView } from "./TranscriptView";
 import { VideoProcessingStepper } from "./VideoProcessingStepper";
+import { TextProcessingIndicator } from "./TextProcessingIndicator";
 import { ShareDialog } from "@/components/ShareDialog";
 import { renameAnalysis } from "@/lib/api";
 
@@ -403,7 +404,9 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           <VideoProcessingStepper status={data.status} />
         </div>
       ) : processing ? (
-        <p className="mt-8 text-slate-500">Running pipeline…</p>
+        <div className="mt-8">
+          <TextProcessingIndicator startedAt={data.created_at} />
+        </div>
       ) : (
         <AnnotationLayer active={annotationMode}>
           {isVideo && (

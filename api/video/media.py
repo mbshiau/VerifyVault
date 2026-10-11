@@ -72,6 +72,11 @@ def fetch_url_video_info(url: str) -> dict:
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
+        # YouTube's signature/n-challenge now requires a JS runtime to solve;
+        # "deno" is yt-dlp's default but isn't installed on most dev machines,
+        # so "node" is included as a fallback that's far more commonly present.
+        "js_runtimes": {"deno": {}, "node": {}},
+        "remote_components": ["ejs:github"],
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
         },
@@ -115,6 +120,8 @@ def download_remote_audio(url: str, out_path: str) -> None:
             "no_warnings": True,
             "format": "bestaudio/best",
             "outtmpl": raw_template,
+            "js_runtimes": {"deno": {}, "node": {}},
+            "remote_components": ["ejs:github"],
             "http_headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
             },
