@@ -30,11 +30,11 @@ function loadTwitterWidgets(): Promise<void> {
   return widgetsLoadPromise;
 }
 
-// X/Twitter's embedded tweet widget has no public API to seek video to a
-// timestamp (unlike YouTube's IFrame Player) - so this still exposes the
-// same VideoPlayerHandle shape the rest of the analysis page calls
-// unconditionally, but seekTo is a deliberate no-op here. Clicking a claim
-// still highlights/scrolls the transcript; it just can't jump the embedded
+// X/Twitter's embedded tweet widget has no public API to seek/play/pause its
+// video (unlike YouTube's IFrame Player) - so this still exposes the same
+// VideoPlayerHandle shape the rest of the analysis page calls unconditionally,
+// but every method is a deliberate no-op here. Clicking a claim still
+// highlights/scrolls the transcript; it just can't control the embedded
 // player itself.
 export const TweetEmbed = forwardRef<VideoPlayerHandle, { tweetId: string }>(function TweetEmbed(
   { tweetId },
@@ -58,6 +58,12 @@ export const TweetEmbed = forwardRef<VideoPlayerHandle, { tweetId: string }>(fun
 
   useImperativeHandle(ref, () => ({
     seekTo() {
+      // No-op: see the component-level comment above.
+    },
+    async play() {
+      // No-op: see the component-level comment above.
+    },
+    pause() {
       // No-op: see the component-level comment above.
     },
   }));

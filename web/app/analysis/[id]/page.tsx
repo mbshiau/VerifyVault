@@ -401,7 +401,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
 
       {isVideo && (videoInProgress || videoFailed) ? (
         <div className="mt-8">
-          <VideoProcessingStepper status={data.status} />
+          <VideoProcessingStepper status={data.status} startedAt={data.created_at} />
         </div>
       ) : processing ? (
         <div className="mt-8">
@@ -495,7 +495,7 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
                 <p className="mt-1 text-sm leading-6 text-slate-500">Expandable cards with claim text, metadata, and evidence.</p>
               </div>
 
-              <div className="space-y-3">
+              <div className="max-h-[78vh] space-y-3 overflow-y-auto pr-1">
                 {allClaims.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
                     No claims detected.

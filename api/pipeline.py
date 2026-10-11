@@ -235,7 +235,7 @@ EXCLUDE a statement if it is only: - An opinion, insult, value judgment, or subj
 - A hypothetical or conditional example (e.g. "if you have access to a nurse practitioner...").
 - A rhetorical exhortation or advocacy statement (e.g. "let's be smart", "focus on winning", "we must...", "we will...").
 - A causal or policy argument stated as a generalization rather than a discrete factual assertion (e.g. "that's how we drive down costs").
-- A question, including rhetorical or interview questions.
+- A question, including rhetorical or interview questions. However, when a rhetorical question is immediately followed by its own answer (e.g. "You know why gas is so expensive? Because of Trump's war with Iran."), the question itself is still not a claim, but DO extract the answer - and when you do, fold the question's implicit subject into the claim's `text` so it states the complete assertion rather than a dangling fragment. "Because of Trump's war with Iran" alone asserts nothing checkable on its own (a war existing isn't the claim being made); the actual claim is the causal one the question supplied the subject for: "Gas prices are high because of Trump's war with Iran." The `quote` field stays the verbatim answer sentence as written - only `text` (and the search basis derived from it) needs the implied subject restored.
 - A generic observation or truism that carries little factual content (e.g. "people graduate from high school and college").
 - A subjective characterization of public sentiment or mood (e.g. "there's a lot of anxiety around AI").
 - Speculative attribution of motive, intent, or causation without supporting evidence (e.g. "Trump is targeting me because I'm running for president", "some of that anxiety is due to AI").
@@ -292,6 +292,10 @@ Segment: "I represent a rural committee outside of Chicago. In the last year we 
 Claims to extract: "I represent a rural committee outside of Chicago" (verifiable role/constituency); "In the last year we have had closures" (verifiable event); "I have a bill to get that moving" (verifiable - a specific bill either exists or doesn't).
 
 Not claims: "Those facilities need help to stay open" (opinion); "We will have fewer providers" (prediction); "If you have access to a nurse practitioner..." (hypothetical); "It doesn't have to explode the deficit" (prediction/opinion).
+
+Segment: "You know why gas is so expensive? Because of Donald Trump's $200 billion war with Iran. And now, every time you fill up, you're paying for it."
+
+Claims to extract: "Gas prices are high because of Donald Trump's $200 billion war with Iran" (quote: "Because of Donald Trump's $200 billion war with Iran." - the rhetorical question itself isn't extracted, but its subject, "gas is so expensive," is folded into the claim's text since the answer sentence alone, "Because of...", doesn't state what it's explaining). Do NOT extract just "Donald Trump's $200 billion war with Iran" as the claim text - that drops the actual assertion (that this war is *why gas is expensive*) down to a bare noun phrase, which both loses what's actually being claimed and produces a search query with nothing to anchor it to gas prices at all.
 
 Segment: "There's a lot of anxiety around AI. People are graduating from high school and graduating from college. There's a lot of angst out there about the job market and if you look at the unemployment rate for young workers, whether college graduate or not, it is rising, and some of that angst has to do with the advent of this new technology that may displace a lot of entry-level jobs. To what extent do you think AI-driven job replacement is similar or different from automation?"
 
@@ -1219,6 +1223,7 @@ def _is_date_like(name: str) -> bool:
 
 _STOPWORDS = frozenset({
     "the", "and", "for", "are", "but", "not", "you", "all", "can", "her", "was",
+    "because",
     "one", "our", "out", "get", "has", "him", "his", "how", "new", "now", "see",
     "two", "way", "who", "did", "its", "let", "put", "say", "she", "too", "use",
     "under", "over", "each", "with", "that", "this", "from", "have", "had",
@@ -1247,6 +1252,41 @@ _STOPWORDS = frozenset({
 _NATIONAL_TOPIC_RE = re.compile(
     r"\b(president|federal|congress|senate|white house|supreme court)\b", flags=re.IGNORECASE
 )
+
+
+_NUMERIC_PHRASE_RE = re.compile(
+    r"\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:thousand|million|billion|trillion))?"
+    r"|\d[\d,]*(?:\.\d+)?\s?(?:thousand|million|billion|trillion|percent|%)",
+    flags=re.IGNORECASE,
+)
+
+# Numbered bills/ballot measures (e.g. "Proposition 40", "Prop. 40", "HB 574",
+# "SB 123") - same failure mode as dollar amounts/percentages, different
+# shape. Without this, "Proposition 40" tokenizes down to the bare word
+# "proposition" (the digits never survive the letters-only token regex),
+# which searches as if the claim were about the generic noun "proposition"
+# rather than this one specific ballot measure - concretely observed
+# returning Dictionary.com's and Wikipedia's entries for the word
+# "proposition" as the only results for a claim entirely about Prop 40.
+_NAMED_MEASURE_RE = re.compile(
+    r"\b(?:proposition|prop|initiative|measure|amendment|referendum|ordinance|resolution)\.?\s*(?:no\.?\s*)?\d+[a-z]?\b"
+    r"|\b(?:h\.?\s?b\.?|s\.?\s?b\.?|h\.?\s?r\.?|s\.?\s?r\.?|h\.?\s?j\.?\s?r\.?|s\.?\s?j\.?\s?r\.?)\s?\d+\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _numeric_phrases(text: str) -> list[str]:
+    """Extracts dollar amounts, percentages, and numbered bill/ballot-measure
+    names (e.g. "$200 billion", "93%", "Proposition 40") as literal
+    search-query phrases. The token regexes elsewhere in this file only
+    capture letters ([A-Za-z]+), so a claim's actual checkable figure or
+    the specific numbered measure it's about - often the single most
+    distinctive, fact-check-relevant part of the claim - was silently
+    dropped from every search query before this existed.
+    """
+    matches = list(_NUMERIC_PHRASE_RE.finditer(text or "")) + list(_NAMED_MEASURE_RE.finditer(text or ""))
+    matches.sort(key=lambda m: m.start())
+    return list(dict.fromkeys(re.sub(r"\s+", " ", m.group(0)).strip() for m in matches))
 
 
 def _keep_search_token(t: str) -> bool:
@@ -1374,7 +1414,8 @@ def _rank_claim_sources(
         for t in re.findall(r"[A-Za-z]+", term)
         if _keep_search_token(t) and t.lower() not in _STOPWORDS
     ]
-    query = " ".join(dict.fromkeys(claim_tokens + entity_tokens + alias_tokens)).strip()
+    numeric_phrases = _numeric_phrases(claim_query)
+    query = " ".join(dict.fromkeys(claim_tokens + entity_tokens + alias_tokens + numeric_phrases)).strip()
     # Only inject the state into the query text for claims that are
     # actually state/local in nature - a claim about federal policy (e.g.
     # a governor commenting on the President's tariffs) has nothing to do
@@ -1472,6 +1513,12 @@ def _rank_claim_sources(
         for ct in claim_tokens:
             if ct in title or ct in snippet:
                 score += 0.1
+        # larger boost for a source that actually cites the claim's own
+        # figure (e.g. "$200 billion") - a source reporting a *different*
+        # number for the same thing is exactly what's most useful to surface
+        for phrase in numeric_phrases:
+            if phrase.lower() in title or phrase.lower() in snippet:
+                score += 0.4
         if claim_year is not None:
             content_year = _parse_content_year(s.get("snippet", "") or "")
             if content_year is not None and content_year < claim_year - 1:

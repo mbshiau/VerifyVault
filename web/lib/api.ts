@@ -328,6 +328,7 @@ export async function findMoreSources(analysisId: string, claimId: string): Prom
 export const VIDEO_PROCESSING_STATUSES = [
   "uploading",
   "extracting_audio",
+  "fetching_youtube_transcript",
   "transcribing",
   "detecting_claims",
 ] as const;
