@@ -749,7 +749,7 @@ def _tavily_search_raw(query: str, max_results: int) -> list[dict]:
         "api_key": settings.tavily_api_key,
         "query": query,
         "max_results": max_results,
-        "search_depth": "basic",
+        "search_depth": "advanced",
         "include_answer": False,
         "exclude_domains": SOCIAL_MEDIA_DOMAINS,
     }
@@ -1042,31 +1042,40 @@ def enrich_entity_descriptions(text: str, entities: list[dict]) -> dict[str, str
         return {}
     
     entity_list = ", ".join(e["name"] for e in entities)
-    resp = client.chat.completions.create(
-        model=settings.openai_model,
-        max_tokens=1024,
-        tools=[ENTITY_DESCRIPTION_TOOL],
-        tool_choice={"type": "function", "function": {"name": "record_entity_descriptions"}},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You provide brief, factual descriptions of named entities mentioned in political text, "
-                    "based on context clues in the text itself. Use the record_entity_descriptions tool. "
-                    "Always call the tool exactly once."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Based on the following political text, provide brief descriptions (1-2 sentences each) "
-                    f"for these entities: {entity_list}\n\n"
-                    f"Text:\n---\n{text}\n---\n\n"
-                    f"Focus on what the text reveals about each entity and why they matter to the claims being made."
-                ),
-            },
-        ],
-    )
+    try:
+        # max_tokens scales with entity count - a fixed small budget gets the
+        # tool-call JSON truncated mid-string on speeches with many entities,
+        # which some providers (e.g. Groq) reject as a hard 400 rather than
+        # returning the partial text, instead of just failing json.loads below.
+        resp = client.chat.completions.create(
+            model=settings.openai_model,
+            max_tokens=max(1024, 256 * len(entities)),
+            tools=[ENTITY_DESCRIPTION_TOOL],
+            tool_choice={"type": "function", "function": {"name": "record_entity_descriptions"}},
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You provide brief, factual descriptions of named entities mentioned in political text, "
+                        "based on context clues in the text itself. Use the record_entity_descriptions tool. "
+                        "Always call the tool exactly once."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Based on the following political text, provide brief descriptions (1-2 sentences each) "
+                        f"for these entities: {entity_list}\n\n"
+                        f"Text:\n---\n{text}\n---\n\n"
+                        f"Focus on what the text reveals about each entity and why they matter to the claims being made."
+                    ),
+                },
+            ],
+        )
+    except Exception:
+        # Entity descriptions are enrichment, not core to claim detection -
+        # losing them shouldn't fail the whole analysis.
+        return {}
     msg = resp.choices[0].message
     if msg.tool_calls:
         try:
